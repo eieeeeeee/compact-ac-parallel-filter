@@ -1,0 +1,8 @@
+(footprint "TR5_374_5.08mm"
+  (version 20241229)(generator "pcbnew")(generator_version "9.0.9")(layer "F.Cu")
+  (descr "Littelfuse 374 Series TR5 fuse, 8.5mm dia max, 5.08mm pitch")(attr through_hole)
+  (fp_circle (center 0 0) (end 4.25 0) (stroke (width 0.25) (type default)) (fill (type none)) (layer "F.SilkS"))
+  (fp_circle (center 0 0) (end 4.5 0) (stroke (width 0.05) (type default)) (fill (type none)) (layer "F.CrtYd"))
+  (pad "1" thru_hole circle (at -2.54 0) (size 2.4 2.4) (drill 1.1) (layers "*.Cu" "*.Mask"))
+  (pad "2" thru_hole circle (at 2.54 0) (size 2.4 2.4) (drill 1.1) (layers "*.Cu" "*.Mask"))
+)
