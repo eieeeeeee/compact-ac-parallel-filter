@@ -29,3 +29,15 @@ All notable design changes should be documented here.
 ### Validation status
 
 No physical prototype has been manufactured or mains-tested.
+
+
+### KiCad Rev.A 32 × 28 mm hardware added
+
+- Added editable KiCad 9 schematic and PCB
+- Fixed PCB outline at 32 × 28 mm for the current mechanical study
+- Added project-local symbols and footprints
+- Placed C1, MOV1 and F1 on the front
+- Moved low-power resistors, LED and clamp diode to B.Cu
+- Added placement CSV
+- Marked J1 as a provisional plug-assembly interface, not a final blade footprint
+- Removed C2/RC footprints from this compact revision pending measurements
