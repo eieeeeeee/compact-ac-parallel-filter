@@ -144,3 +144,18 @@ See [SAFETY.md](SAFETY.md) before working with this design.
 **現時点では実機未製作・商用電源未試験です。完成品、安全確認済み製品、認証済み製品ではありません。**
 
 初号機を製作・測定するまでは `v0.1.0-preprototype` として扱い、実測結果は成功・不成功を問わず公開する方針です。
+
+
+## KiCad Rev.A hardware
+
+An editable **KiCad 9 Rev.A pre-prototype** has now been added under [hardware/kicad](hardware/kicad/README.md).
+
+Current layout study:
+
+- exact PCB outline: **32 × 28 mm**
+- C1 / MOV1 / F1: front-side THT
+- R1 / R2 / R4 / R5 / LED1 / D1: back-side SMD for compactness
+- J1: **provisional electrical interface only — not the final plug-blade footprint**
+- C2 and optional RC damping: not implemented on this compact Rev.A PCB
+
+The files are still **NOT YET TESTED ON MAINS** and are not a fabrication-approved or certified design.
