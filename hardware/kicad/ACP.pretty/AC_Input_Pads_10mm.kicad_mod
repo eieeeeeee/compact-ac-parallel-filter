@@ -1,0 +1,8 @@
+(footprint "AC_Input_Pads_10mm"
+  (version 20241229)(generator "pcbnew")(generator_version "9.0.9")(layer "F.Cu")
+  (descr "PROVISIONAL electrical interface to a mechanically retained plug assembly; NOT blade footprint")(attr through_hole)
+  (fp_line (start -6 -2) (end 6 -2) (stroke (width 0.25) (type default)) (layer "F.SilkS"))
+  (fp_text user "PLUG ASSEMBLY INTERFACE" (at 0 2.5) (layer "F.SilkS") (effects (font (size 0.7 0.7) (thickness 0.12))))
+  (pad "1" thru_hole circle (at -5 0) (size 2 2) (drill 1.0) (layers "*.Cu" "*.Mask"))
+  (pad "2" thru_hole circle (at 5 0) (size 2 2) (drill 1.0) (layers "*.Cu" "*.Mask"))
+)
