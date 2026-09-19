@@ -1,0 +1,4 @@
+(sym_lib_table
+  (version 7)
+  (lib (name "ACP")(type "KiCad")(uri "${KIPRJMOD}/ACP.kicad_sym")(options "")(descr "Compact AC Parallel Filter local symbols"))
+)
