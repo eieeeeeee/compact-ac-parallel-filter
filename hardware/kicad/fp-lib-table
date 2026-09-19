@@ -1,0 +1,3 @@
+(fp_lib_table
+  (lib (name "ACP")(type "KiCad")(uri "${KIPRJMOD}/ACP.pretty")(options "")(descr "Compact AC Parallel Filter local footprints"))
+)
