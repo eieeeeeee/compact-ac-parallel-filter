@@ -71,3 +71,46 @@ This is reactive current, not equivalent real power dissipation, but it is relev
 The project remains **pre-prototype** until a physical unit is assembled.
 
 No efficiency, EMI-reduction, surge-protection, thermal, or safety-performance claim should be made before measurement.
+
+
+## KiCad Rev.A implementation
+
+The first editable PCB study is committed under `hardware/kicad/`.
+
+### Exact board outline
+
+**32.0 × 28.0 mm**, nominal 1.6 mm FR-4.
+
+### Placement strategy
+
+Front side:
+- C1 — KEMET R53 1 µF X2
+- MOV1 — TMOV14RP140E
+- F1 — Littelfuse 37402500000
+- J1 — provisional connection pads to a separately retained plug assembly
+
+Back side:
+- R1/R2 — discharge network
+- R4/R5 — LED current limiting
+- LED1
+- D1 — reverse clamp
+
+Moving the low-power components to B.Cu is what makes the 32 × 28 mm target mechanically plausible.
+
+### Mechanical limit
+
+The C1 courtyard and the 17 mm maximum TMOV body courtyard are effectively packed to the board-size limit. The 32 × 28 mm outline is therefore a **fit study, not a guaranteed production envelope**.
+
+### Plug interface
+
+The current J1 footprint is deliberately not presented as a Japanese Type-A blade footprint. The final plug blade geometry, blade retention and enclosure must be selected as one mechanical system. Plug insertion/removal forces must not rely only on soldered PCB pads.
+
+### Parts still requiring qualification
+
+- exact 220 kΩ 1206 resistor
+- exact 47 kΩ 1206 resistor
+- exact blue 1206 LED
+- exact SOD-123 reverse diode
+- final plug/enclosure assembly
+
+The exact resistor parts must satisfy the required voltage, overload/pulse, power and flame-performance requirements for the final product.
