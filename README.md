@@ -5,7 +5,7 @@ Compact plug-in experimental AC mains parallel network for **100 V AC, 50/60 Hz*
 > [!WARNING]
 > ## PRE-PROTOTYPE / EXPERIMENTAL / NOT YET TESTED ON MAINS
 >
-> This project is currently at the **design stage only**.
+> This project is currently at the **design and simulation stage only**.
 >
 > **No physical prototype has yet been manufactured or tested.**
 >
@@ -19,15 +19,28 @@ Compact plug-in experimental AC mains parallel network for **100 V AC, 50/60 Hz*
 
 | Item | Current state |
 |---|---|
-| Version | `v0.1.0-preprototype` |
-| Development stage | Design / pre-prototype |
+| Version | `v0.1.1-preprototype` |
+| Development stage | Design / simulation / pre-prototype |
 | Target mains | 100 V AC, 50/60 Hz |
+| KiCad 10 review PCB | **DRC: 0 violations / 0 unconnected pads / 0 footprint errors** |
 | Physical prototype | **NOT BUILT** |
 | Mains test | **NOT PERFORMED** |
 | EMI/noise performance | **NOT VERIFIED** |
 | Thermal test | **NOT PERFORMED** |
 | Surge/fault test | **NOT PERFORMED** |
 | Safety certification | **NONE** |
+
+## Latest review material
+
+- [KiCad hardware files](hardware/kicad/README.md)
+- [KiCad 10 review PCB v0.5](hardware/kicad/review-v0.5/README.md) — 50 × 35 mm spacing/DNP study
+- [KiCad 10 official DRC report](measurements/drc/DRC_KiCad10_v0_5_20260920.rpt)
+- [Simulation v0.1](simulations/v0.1/simulation_assumptions_v0_1.md)
+- [Simulation overview image](images/shunt_filter_simulation_overview_v0_1.png)
+
+![Pre-prototype simulation overview](images/shunt_filter_simulation_overview_v0_1.png)
+
+The simulation figures are **predictions based on disclosed assumptions**, not measurements. In particular, high-frequency performance depends on capacitor ESR/ESL, PCB and wiring inductance, outlet/source impedance, connected equipment, and placement.
 
 ## Design target
 
@@ -41,12 +54,14 @@ The initial concept is a compact direct plug-in parallel network using:
 - **CMC:** not included in the initial parallel-only architecture
 - **Optional C2 / RC damping:** reserved for later measurement-based evaluation
 
-### Preliminary mechanical target
+Two PCB studies are retained for review rather than silently replacing one another:
 
-- PCB: **approximately 32 × 28 mm**
-- Enclosure: **approximately 38 × 34 × 27 mm**
+| Revision | Board | Purpose |
+|---|---:|---|
+| KiCad 9 Rev.A | 32 × 28 mm | compact mechanical study |
+| KiCad 10 review v0.5 | 50 × 35 mm | wider spacing and DNP comparison footprints |
 
-These dimensions are **targets only** and may increase if required to maintain suitable creepage, clearance, thermal spacing, mechanical strength, plug retention, or manufacturability.
+Neither revision is a fabrication-approved or mains-validated design.
 
 ## Project goals
 
@@ -71,11 +86,14 @@ These dimensions are **targets only** and may increase if required to maintain s
 │  └─ TEST_PLAN.md
 ├─ hardware/
 │  └─ kicad/
-│     └─ README.md
+│     ├─ README.md
+│     └─ review-v0.5/
+├─ simulations/
+│  └─ v0.1/
 ├─ measurements/
-│  └─ README.md
+│  ├─ README.md
+│  └─ drc/
 └─ images/
-   └─ README.md
 ```
 
 ## Development stages
@@ -127,7 +145,7 @@ The project intends to publish comparable measurements for:
 - temperature and long-duration behavior
 - noise spectra using identical measurement settings
 
-No performance claim should be made from the circuit diagram alone.
+No performance claim should be made from the circuit diagram or simulation alone.
 
 ## Regulatory note
 
@@ -139,23 +157,12 @@ See [SAFETY.md](SAFETY.md) before working with this design.
 
 ## 日本語概要
 
-このリポジトリは、AC100 Vコンセントに直接挿す小型並列回路の**設計・測定過程を公開する実験的オープンハードウェアプロジェクト**です。
+このリポジトリは、AC100 Vコンセントに直接挿す小型並列回路の**設計・計算・測定過程を公開する実験的オープンハードウェアプロジェクト**です。
 
 **現時点では実機未製作・商用電源未試験です。完成品、安全確認済み製品、認証済み製品ではありません。**
 
-初号機を製作・測定するまでは `v0.1.0-preprototype` として扱い、実測結果は成功・不成功を問わず公開する方針です。
+KiCad 10用レビュー基板v0.5では公式DRCを実行し、違反0・未接続0・フットプリントエラー0を確認しました。ただし、DRC合格は回路の安全性、部品定格、絶縁、筐体、熱、サージ耐性、ノイズ低減効果を保証するものではありません。
 
+試作前のシミュレーションでは、容量別インピーダンス、電源側インピーダンス別の減衰予測、1 µF＋440 kΩの放電曲線、AC100 V・60 Hz時の容量電流を公開しています。使用した仮定と計算用データも収録し、試作後に実測値と比較できる形にしています。
 
-## KiCad Rev.A hardware
-
-An editable **KiCad 9 Rev.A pre-prototype** has now been added under [hardware/kicad](hardware/kicad/README.md).
-
-Current layout study:
-
-- exact PCB outline: **32 × 28 mm**
-- C1 / MOV1 / F1: front-side THT
-- R1 / R2 / R4 / R5 / LED1 / D1: back-side SMD for compactness
-- J1: **provisional electrical interface only — not the final plug-blade footprint**
-- C2 and optional RC damping: not implemented on this compact Rev.A PCB
-
-The files are still **NOT YET TESTED ON MAINS** and are not a fabrication-approved or certified design.
+初号機を製作・測定するまでは `v0.1.1-preprototype` として扱い、実測結果は成功・不成功を問わず公開する方針です。

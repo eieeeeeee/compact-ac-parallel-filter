@@ -1,0 +1,12 @@
+Ref,Qty,Initial,Manufacturer,MPN,Value_or_rating,Role,Notes
+C1,1,Fitted,KEMET,R533N410050P0K,1uF X2 310VAC,Main shunt capacitor,22.5mm lead pitch
+R1 R2,2,Fitted,Vishay,PR01000102203JA100,220k 1W 5%,Discharge path,Series total 440k
+F1,1,Fitted,Littelfuse,37402500000,250mA 250VAC time-lag,Fault isolation,Radial PCB fuse
+MOV1,1,Fitted,Littelfuse,TMOV14RP140E,140VAC thermally protected MOV,Surge protection,Placed after F1
+R4 R5,2,Fitted,Vishay,PR01000104702JA100,47k 1W 5%,LED current limiting,Series total 94k
+D1,1,Fitted,Generic,1N4007,1000V rectifier diode,LED reverse-voltage clamp,Antiparallel with LED1
+LED1,1,TBD,TBD,TBD,3mm blue low-current high-efficiency,Power indication,Keep behind case window
+C2,1,DNP,TBD,TBD,0.1uF X2 305VAC,High-frequency comparison,Populate only after measurement
+R3 C3,1 set,DNP,TBD,TBD,Measurement-defined,RC damping branch,Values selected from impedance measurement
+J1,1,Mechanical TBD,TBD,TBD,Two-blade AC100V plug interface,Final metal blade retention not yet fixed
+

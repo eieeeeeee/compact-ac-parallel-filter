@@ -1,0 +1,7 @@
+(footprint "C2_X2_P22_5_DNP" (version 20240108) (generator pcbnew) (layer "F.Cu")
+  (property "Reference" "C2" (at 0 -12.8) (layer "F.SilkS") hide (effects (font (size 0.9 0.9) (thickness 0.14))))
+  (property "Value" "0.1uF_X2_DNP" (at 0 12.8) (layer "F.Fab") hide (effects (font (size 1 1) (thickness 0.15))))
+  (fp_rect (start -2.5 -11.8) (end 2.5 11.8) (stroke (width 0.22) (type dash)) (fill none) (layer "F.Fab"))
+  (pad "1" thru_hole circle (at 0 -11.25) (size 2.5 2.5) (drill 1) (layers "*.Cu" "*.Mask"))
+  (pad "2" thru_hole circle (at 0 11.25) (size 2.5 2.5) (drill 1) (layers "*.Cu" "*.Mask"))
+)

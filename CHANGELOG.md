@@ -2,6 +2,28 @@
 
 All notable design changes should be documented here.
 
+## [0.1.1-preprototype] — 2026-09-20
+
+### Added
+
+- Separate KiCad 10 review PCB v0.5 under `hardware/kicad/review-v0.5/`
+- Project-local footprint library and design-rule file for v0.5
+- Archived official KiCad 10 DRC report
+- Simulation v0.1 assumptions, CSV data, plots, generation script and example SPICE netlists
+- Simulation overview image for design review
+
+### Verified
+
+- KiCad 10 v0.5 DRC: 0 violations
+- KiCad 10 v0.5 unconnected pads: 0
+- KiCad 10 v0.5 footprint errors: 0
+
+### Clarified
+
+- The KiCad 9 Rev.A 32 × 28 mm compact study and KiCad 10 v0.5 50 × 35 mm review study are separate revisions.
+- Simulation results are disclosed predictions, not mains measurements or performance certification.
+- The project remains pre-prototype and has not been energized on mains.
+
 ## [0.1.0-preprototype] — 2026-09-19
 
 ### Added
@@ -29,7 +51,6 @@ All notable design changes should be documented here.
 ### Validation status
 
 No physical prototype has been manufactured or mains-tested.
-
 
 ### KiCad Rev.A 32 × 28 mm hardware added
 

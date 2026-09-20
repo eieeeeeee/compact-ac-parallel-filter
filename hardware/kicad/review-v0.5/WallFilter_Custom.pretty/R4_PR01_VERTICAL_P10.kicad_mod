@@ -1,0 +1,7 @@
+(footprint "R4_PR01_VERTICAL_P10" (version 20240108) (generator pcbnew) (layer "F.Cu")
+  (property "Reference" "R4" (at -2 5 90) (layer "F.SilkS") hide (effects (font (size 0.9 0.9) (thickness 0.14))))
+  (property "Value" "47k" (at 2 5 90) (layer "F.Fab") hide (effects (font (size 1 1) (thickness 0.15))))
+  (fp_rect (start -1.5 1.7) (end 1.5 8.3) (stroke (width 0.25) (type default)) (fill none) (layer "F.Fab"))
+  (pad "1" thru_hole circle (at 0 0) (size 2.4 2.4) (drill 0.9) (layers "*.Cu" "*.Mask"))
+  (pad "2" thru_hole circle (at 0 10) (size 2.4 2.4) (drill 0.9) (layers "*.Cu" "*.Mask"))
+)

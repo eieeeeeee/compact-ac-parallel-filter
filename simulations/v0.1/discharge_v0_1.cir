@@ -1,0 +1,7 @@
+* 1uF capacitor discharged by 220k + 220k after plug removal
+* Initial voltage is the 100 V RMS mains peak.
+C1 node 0 1u IC=141.421
+R1 node mid 220k
+R2 mid 0 220k
+.tran 0 2.5 0 1m UIC
+.end

@@ -1,0 +1,11 @@
+* AC100V shunt filter — small-signal AC model v0.1
+* Prediction only. Source resistance is stepped to show dependence on the line/test fixture.
+.param Cmain=1u ESR=0.08 ESL=25n Rth=50
+VNOISE in 0 AC 1
+RSOURCE in out {Rth}
+LFILTER out c_esr {ESL}
+RFILTER c_esr c_cap {ESR}
+CFILTER c_cap 0 {Cmain}
+.step param Rth list 0.1 1 10 50
+.ac dec 100 10 30Meg
+.end
