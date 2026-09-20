@@ -11,6 +11,8 @@ All notable design changes should be documented here.
 - Archived official KiCad 10 DRC report
 - Simulation v0.1 assumptions, CSV data, plots, generation script and example SPICE netlists
 - Simulation overview image for design review
+- Editable LTspice `.asc` files for AC sweep and post-unplug discharge analysis
+- LTspice instructions, expected nominal checkpoints and model limitations
 
 ### Verified
 

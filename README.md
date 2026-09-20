@@ -36,6 +36,7 @@ Compact plug-in experimental AC mains parallel network for **100 V AC, 50/60 Hz*
 - [KiCad 10 review PCB v0.5](hardware/kicad/review-v0.5/README.md) — 50 × 35 mm spacing/DNP study
 - [KiCad 10 official DRC report](measurements/drc/DRC_KiCad10_v0_5_20260920.rpt)
 - [Simulation v0.1](simulations/v0.1/simulation_assumptions_v0_1.md)
+- [Editable LTspice analysis files](simulations/ltspice-v0.1/README.md) — AC sweep and post-unplug discharge
 - [Simulation overview image](images/shunt_filter_simulation_overview_v0_1.png)
 
 ![Pre-prototype simulation overview](images/shunt_filter_simulation_overview_v0_1.png)
