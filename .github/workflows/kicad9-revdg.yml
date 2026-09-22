@@ -29,7 +29,7 @@ jobs:
         run: |
           cd hardware/rev-d-g-v1.2
           python3 - <<'PY'
-          import csv, uuid
+          import csv, uuid, json
 
           pin_net = {}
           with open("NETLIST_v1.2.csv", encoding="utf-8-sig") as f:
@@ -49,7 +49,7 @@ jobs:
           def uid(name):
               return str(uuid.uuid5(NS, name))
 
-          # Register the local library so KiCad ERC does not flag the embedded symbol's library ID.
+          # Local symbol library and project-local registration.
           sym = [
               '(kicad_symbol_lib (version 20220914) (generator "revdg_v12_ci")',
               '  (symbol "NETPIN" (pin_numbers hide) (pin_names (offset 0)) (in_bom no) (on_board no)',
@@ -89,11 +89,11 @@ jobs:
 
           instance_rows=[]
           cols=12
-          # All placement coordinates are exact 50-mil (1.27-mm) multiples.
-          x0=20.32       # 800 mil
+          # Exact 50-mil grid placement.
+          x0=20.32
           y0=20.32
-          xstep=25.40    # 1000 mil
-          ystep=12.70    # 500 mil
+          xstep=25.40
+          ystep=12.70
 
           for i,(actual_pin,net) in enumerate(sorted(pin_net.items()), start=1):
               col=(i-1)%cols
@@ -117,7 +117,6 @@ jobs:
                   f'    (property "Datasheet" "~" (id 3) (at {x:.2f} {y:.2f} 0) (effects (font (size 1.0 1.0)) hide))',
                   f'    (pin "1" (uuid {puid}))',
                   '  )',
-                  # Same proven geometry used by Rev.C: label at the one-pin symbol connection point.
                   f'  (label "{safe_net}" (at {x-3.81:.2f} {y:.2f} 0) (effects (font (size 0.8 0.8)) (justify left bottom)) (uuid {luid}))',
               ]
               instance_rows.append(
@@ -133,6 +132,22 @@ jobs:
           ]
 
           open("RevD_G_v1_2_ERC.kicad_sch","w",encoding="utf-8").write("\n".join(out)+"\n")
+
+          # Reuse the proven Rev.C KiCad 9 project structure, but remove PCB references
+          # and make library issues visible (warning) instead of suppressing them.
+          with open("../rev-c-active-shunt/RevC_Active_Controller_v0.3.1.kicad_pro", encoding="utf-8") as f:
+              proj=json.load(f)
+          proj["boards"]=[]
+          proj["meta"]["filename"]="RevD_G_v1_2_ERC.kicad_pro"
+          proj["sheets"]=[[uid("root"),"Root"]]
+          proj["erc"]["erc_exclusions"]=[]
+          proj["erc"]["rule_severities"]["lib_symbol_issues"]="warning"
+          proj["erc"]["rule_severities"]["endpoint_off_grid"]="error"
+          if "net_settings" in proj:
+              proj["net_settings"]["netclass_patterns"]=[]
+          with open("RevD_G_v1_2_ERC.kicad_pro","w",encoding="utf-8") as f:
+              json.dump(proj,f,indent=2)
+
           print(f"Generated native KiCad carrier: assigned_pins={len(pin_net)}")
           PY
 
@@ -171,6 +186,7 @@ jobs:
           path: |
             ci-reports/
             hardware/rev-d-g-v1.2/RevD_G_v1_2_ERC.kicad_sch
+            hardware/rev-d-g-v1.2/RevD_G_v1_2_ERC.kicad_pro
             hardware/rev-d-g-v1.2/RevDG.kicad_sym
             hardware/rev-d-g-v1.2/sym-lib-table
           if-no-files-found: warn
