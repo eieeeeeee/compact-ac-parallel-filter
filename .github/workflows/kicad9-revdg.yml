@@ -21,7 +21,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Prepare report directory
-        run: mkdir -p ci-reports
+        run: |
+          mkdir -p ci-reports
+          chmod 777 ci-reports
 
       - name: Pull official KiCad 9 image
         run: docker pull kicad/kicad:9.0
