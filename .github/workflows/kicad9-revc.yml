@@ -1,9 +1,9 @@
-name: KiCad 9 Rev.C ERC/DRC
+name: KiCad 9 Rev.C v0.3.1 ERC/DRC
 
 on:
   push:
     branches:
-      - rev-c-active-shunt-v0.3
+      - rev-c-active-shunt-v0.3.1
     paths:
       - 'hardware/rev-c-active-shunt/**'
       - '.github/workflows/kicad9-revc.yml'
@@ -47,7 +47,7 @@ jobs:
               --severity-all \
               --exit-code-violations \
               --output /work/ci-reports/revc-erc.rpt \
-              RevC_Active_Controller_v0.3.kicad_sch
+              RevC_Active_Controller_v0.3.1.kicad_sch
 
       - name: Run PCB DRC and schematic parity
         id: drc
@@ -63,7 +63,7 @@ jobs:
               --schematic-parity \
               --exit-code-violations \
               --output /work/ci-reports/revc-drc.rpt \
-              RevC_Active_Controller_v0.3.kicad_pcb
+              RevC_Active_Controller_v0.3.1.kicad_pcb
 
       - name: Print ERC/DRC reports
         if: always()
@@ -77,7 +77,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: revc-kicad9-erc-drc
+          name: revc-v031-kicad9-erc-drc
           path: ci-reports/
           if-no-files-found: warn
 
