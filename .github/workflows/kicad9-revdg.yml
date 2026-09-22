@@ -25,12 +25,14 @@ jobs:
           mkdir -p ci-reports
           chmod 777 ci-reports
 
-      - name: Generate zero-length-pin ERC carrier from authoritative netlist
+      - name: Generate direct-wire ERC carrier from authoritative netlist
         run: |
           cd hardware/rev-d-g-v1.2
           python3 - <<'PY'
-          import csv
+          import csv, math
+          from collections import defaultdict
 
+          net_pins = defaultdict(list)
           pin_net = {}
           with open("NETLIST_v1.2.csv", encoding="utf-8-sig") as f:
               rd = csv.reader(f)
@@ -44,9 +46,11 @@ jobs:
                       if pin in pin_net and pin_net[pin] != net:
                           raise SystemExit(f"Pin {pin} appears on both {pin_net[pin]} and {net}")
                       pin_net[pin] = net
+                      net_pins[net].append(pin)
 
-          # One zero-length passive pin per authoritative assigned pin.
-          # Using one-pin symbols eliminates symbol-transform ambiguity in the ERC carrier.
+          # A one-pin passive symbol with a zero-length pin.
+          # Every authoritative net is represented by direct copper/wire connections,
+          # so no electrical labels are needed in the carrier.
           lib = [
               "EESchema-LIBRARY Version 2.4",
               "#encoding utf-8",
@@ -54,11 +58,11 @@ jobs:
               "# NETPIN",
               "#",
               "DEF NETPIN X 0 40 Y Y 1 F N",
-              'F0 "X" 0 160 40 H V C CNN',
-              'F1 "NETPIN" 0 -160 35 H V C CNN',
+              'F0 "X" 0 130 35 H V C CNN',
+              'F1 "NETPIN" 0 -130 30 H V C CNN',
               "DRAW",
-              "S -100 100 100 -100 0 1 8 f",
-              "X P 1 -100 0 0 R 35 35 1 1 P",
+              "S -100 90 100 -90 0 1 8 f",
+              "X P 1 -100 0 0 R 30 30 1 1 P",
               "ENDDRAW",
               "ENDDEF",
               "#",
@@ -73,48 +77,84 @@ jobs:
               "EELAYER END",
               "$Descr A0 46811 33110",
               "Sheet 1 1",
-              'Title "Rev.D-G v1.2 Authoritative Netlist ERC Carrier"',
+              'Title "Rev.D-G v1.2 Authoritative Direct-Wire ERC Carrier"',
               'Date "2026-09-22"',
-              'Rev "v1.2-ERC2"',
+              'Rev "v1.2-ERC3"',
               'Comp "LOW-VOLTAGE connectivity carrier"',
-              'Comment1 "247 assigned pins generated directly from NETLIST_v1.2.csv"',
+              'Comment1 "Generated directly from NETLIST_v1.2.csv"',
               'Comment2 "NOT FOR DIRECT AC100V CONNECTION"',
               "$EndDescr",
           ]
 
-          cols = 8
-          x0, y0 = 2500, 1500
-          xstep, ystep = 5200, 850
+          max_per_row = 12
+          x0 = 2500
+          xstep = 3300
+          y = 1300
+          ystep = 500
+          comp_index = 0
 
-          for i,(actual_pin,net) in enumerate(sorted(pin_net.items())):
-              col=i%cols
-              row=i//cols
-              x=x0+col*xstep
-              y=y0+row*ystep
-              ref=f"X{i+1}"
-              uid=0x20000000+i
+          for net in sorted(net_pins):
+              pins = sorted(net_pins[net])
+              chunks = [pins[i:i+max_per_row] for i in range(0,len(pins),max_per_row)]
+              row_ys = []
+
+              # Net name is documentation only, not an electrical label.
               sch += [
-                  "$Comp",
-                  f"L NETPIN {ref}",
-                  "U 1 1 %08X"%uid,
-                  f"P {x} {y}",
-                  f'F 0 "{ref}" H {x} {y-180} 35  0001 C CNN',
-                  f'F 1 "{actual_pin}" H {x+150} {y+180} 32  0000 C CNN',
-                  f"\t1    {x} {y}",
-                  "\t1    0    0    -1",
-                  "$EndComp",
-                  # zero-length pin is at x-100,y; place net label exactly there
-                  f"Text Label {x-100} {y} 0    30   ~ 0",
+                  f"Text Notes 500 {y} 0    45   ~ 9",
                   net,
               ]
 
+              for chunk_i, chunk in enumerate(chunks):
+                  yy = y + chunk_i*ystep
+                  row_ys.append(yy)
+                  endpoints = []
+                  for j, actual_pin in enumerate(chunk):
+                      x = x0 + j*xstep
+                      comp_index += 1
+                      ref = f"X{comp_index}"
+                      uid = 0x30000000 + comp_index
+                      sch += [
+                          "$Comp",
+                          f"L NETPIN {ref}",
+                          "U 1 1 %08X"%uid,
+                          f"P {x} {yy}",
+                          f'F 0 "{ref}" H {x} {yy-120} 30  0001 C CNN',
+                          f'F 1 "{actual_pin}" H {x+120} {yy+125} 28  0000 C CNN',
+                          f"\t1    {x} {yy}",
+                          "\t1    0    0    -1",
+                          "$EndComp",
+                      ]
+                      endpoints.append(x-100)
+
+                  if len(endpoints) >= 2:
+                      sch += [
+                          "Wire Wire Line",
+                          f"\t{min(endpoints)} {yy} {max(endpoints)} {yy}",
+                      ]
+                  else:
+                      # Give a one-pin net a local stub so its pin is not graphically naked.
+                      sch += [
+                          "Wire Wire Line",
+                          f"\t{endpoints[0]} {yy} {endpoints[0]-200} {yy}",
+                      ]
+
+              # Join multiple rows of the same authoritative net using the first pin point.
+              if len(row_ys) > 1:
+                  trunk_x = x0-100
+                  sch += [
+                      "Wire Wire Line",
+                      f"\t{trunk_x} {row_ys[0]} {trunk_x} {row_ys[-1]}",
+                  ]
+
+              y += len(chunks)*ystep + 120
+
           sch += [
-              "Text Notes 1200 32000 0    100  ~ 20",
-              "GENERATED DIRECTLY FROM NETLIST_v1.2.csv — LOW-VOLTAGE CONNECTIVITY ERC CARRIER ONLY.",
+              "Text Notes 500 32300 0    90   ~ 20",
+              "DIRECT-WIRE CARRIER GENERATED FROM NETLIST_v1.2.csv — LOW-VOLTAGE ONLY.",
               "$EndSCHEMATC",
           ]
           open("RevD_G_v1_2_ERC.sch","w",encoding="utf-8").write("\n".join(sch)+"\n")
-          print(f"Generated assigned_pins={len(pin_net)}")
+          print(f"Generated nets={len(net_pins)} assigned_pins={len(pin_net)} carrier_symbols={comp_index}")
           PY
 
       - name: Pull official KiCad 9 image
