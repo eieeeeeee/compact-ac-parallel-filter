@@ -1,4 +1,4 @@
-name: KiCad 9 Rev.D-G v1.2 ERC
+name: KiCad 9 Rev.D-G v1.2 Full Semantic ERC
 
 on:
   push:
@@ -13,143 +13,44 @@ permissions:
   contents: read
 
 jobs:
-  erc:
+  full-semantic-erc:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Prepare report directory
+      - name: Prepare reports
         run: |
           mkdir -p ci-reports
           chmod 777 ci-reports
 
-      - name: Generate native KiCad 9 ERC carrier from authoritative netlist
+      - name: Generate full native KiCad 9 schematic
         run: |
           cd hardware/rev-d-g-v1.2
+          python3 generate_semantic_schematic.py
           python3 - <<'PY'
-          import csv, uuid, json
-
-          pin_net = {}
-          with open("NETLIST_v1.2.csv", encoding="utf-8-sig") as f:
-              rd = csv.reader(f)
-              next(rd)
-              for row in rd:
-                  net = row[0].strip()
-                  for pin in row[1:]:
-                      pin = pin.strip()
-                      if not pin:
-                          continue
-                      if pin in pin_net and pin_net[pin] != net:
-                          raise SystemExit(f"Pin {pin} appears on both {pin_net[pin]} and {net}")
-                      pin_net[pin] = net
-
-          NS = uuid.UUID("5f9d3a02-c4d4-4d28-b0b8-a0712d4fa312")
-          def uid(name):
-              return str(uuid.uuid5(NS, name))
-
-          # Local symbol library and project-local registration.
-          sym = [
-              '(kicad_symbol_lib (version 20220914) (generator "revdg_v12_ci")',
-              '  (symbol "NETPIN" (pin_numbers hide) (pin_names (offset 0)) (in_bom no) (on_board no)',
-              '    (property "Reference" "X" (at 0 -2.54 0) (effects (font (size 1.0 1.0))))',
-              '    (property "Value" "NETPIN" (at 0 2.54 0) (effects (font (size 1.0 1.0))))',
-              '    (property "Footprint" "" (at 0 0 0) (effects (font (size 1.0 1.0)) hide))',
-              '    (property "Datasheet" "~" (at 0 0 0) (effects (font (size 1.0 1.0)) hide))',
-              '    (symbol "NETPIN_0_1" (rectangle (start -1.27 -1.27) (end 1.27 1.27) (stroke (width 0.254) (type default)) (fill (type none))))',
-              '    (symbol "NETPIN_1_1"',
-              '      (pin passive line (at -3.81 0 0) (length 2.54) (name "P" (effects (font (size 1 1)))) (number "1" (effects (font (size 1 1)))))',
-              '    )',
-              '  )',
-              ')',
-          ]
-          open("RevDG.kicad_sym","w",encoding="utf-8").write("\n".join(sym)+"\n")
-          open("sym-lib-table","w",encoding="utf-8").write(
-              '(sym_lib_table\n  (lib (name "RevDG")(type "KiCad")(uri "${KIPRJMOD}/RevDG.kicad_sym")(options "")(descr "Rev.D-G v1.2 ERC carrier symbol"))\n)\n'
-          )
-
-          out = [
-              '(kicad_sch (version 20220904) (generator "revdg_v12_ci")',
-              f'  (uuid {uid("root")})',
-              '  (paper "A0")',
-              '  (lib_symbols',
-              '    (symbol "RevDG:NETPIN" (pin_numbers hide) (pin_names (offset 0)) (in_bom no) (on_board no)',
-              '      (property "Reference" "X" (at 0 -2.54 0) (effects (font (size 1.0 1.0))))',
-              '      (property "Value" "NETPIN" (at 0 2.54 0) (effects (font (size 1.0 1.0))))',
-              '      (property "Footprint" "" (at 0 0 0) (effects (font (size 1.0 1.0)) hide))',
-              '      (property "Datasheet" "~" (at 0 0 0) (effects (font (size 1.0 1.0)) hide))',
-              '      (symbol "NETPIN_0_1" (rectangle (start -1.27 -1.27) (end 1.27 1.27) (stroke (width 0.254) (type default)) (fill (type none))))',
-              '      (symbol "NETPIN_1_1"',
-              '        (pin passive line (at -3.81 0 0) (length 2.54) (name "P" (effects (font (size 1 1)))) (number "1" (effects (font (size 1 1)))))',
-              '      )',
-              '    )',
-              '  )',
-          ]
-
-          instance_rows=[]
-          cols=12
-          # Exact 50-mil grid placement.
-          x0=20.32
-          y0=20.32
-          xstep=25.40
-          ystep=12.70
-
-          for i,(actual_pin,net) in enumerate(sorted(pin_net.items()), start=1):
-              col=(i-1)%cols
-              row=(i-1)//cols
-              x=x0+col*xstep
-              y=y0+row*ystep
-              suid=uid(f"sym:{actual_pin}")
-              puid=uid(f"pin:{actual_pin}")
-              luid=uid(f"label:{actual_pin}")
-              ref=f"X{i}"
-              safeval=actual_pin.replace('"',"'")
-              safe_net=net.replace('"',"'")
-              out += [
-                  f'  (symbol (lib_id "RevDG:NETPIN") (at {x:.2f} {y:.2f} 0) (unit 1)',
-                  '    (in_bom no) (on_board no)',
-                  f'    (uuid {suid})',
-                  f'    (default_instance (reference "{ref}") (unit 1) (value "{safeval}") (footprint ""))',
-                  f'    (property "Reference" "{ref}" (id 0) (at {x:.2f} {y-2.54:.2f} 0) (effects (font (size 0.8 0.8)) hide))',
-                  f'    (property "Value" "{safeval}" (id 1) (at {x:.2f} {y+2.54:.2f} 0) (effects (font (size 0.75 0.75))))',
-                  f'    (property "Footprint" "" (id 2) (at {x:.2f} {y:.2f} 0) (effects (font (size 1.0 1.0)) hide))',
-                  f'    (property "Datasheet" "~" (id 3) (at {x:.2f} {y:.2f} 0) (effects (font (size 1.0 1.0)) hide))',
-                  f'    (pin "1" (uuid {puid}))',
-                  '  )',
-                  f'  (label "{safe_net}" (at {x-3.81:.2f} {y:.2f} 0) (effects (font (size 0.8 0.8)) (justify left bottom)) (uuid {luid}))',
-              ]
-              instance_rows.append(
-                  f'    (path "/{suid}" (reference "{ref}") (unit 1) (value "{safeval}") (footprint ""))'
-              )
-
-          out += [
-              '  (sheet_instances (path "/" (page "1")))',
-              '  (symbol_instances',
-              *instance_rows,
-              '  )',
-              ')',
-          ]
-
-          open("RevD_G_v1_2_ERC.kicad_sch","w",encoding="utf-8").write("\n".join(out)+"\n")
-
-          # Reuse the proven Rev.C KiCad 9 project structure, but remove PCB references
-          # and make library issues visible (warning) instead of suppressing them.
-          with open("../rev-c-active-shunt/RevC_Active_Controller_v0.3.1.kicad_pro", encoding="utf-8") as f:
-              proj=json.load(f)
-          proj["boards"]=[]
-          proj["meta"]["filename"]="RevD_G_v1_2_ERC.kicad_pro"
-          proj["sheets"]=[[uid("root"),"Root"]]
-          proj["erc"]["erc_exclusions"]=[]
-          proj["erc"]["rule_severities"]["lib_symbol_issues"]="warning"
-          proj["erc"]["rule_severities"]["endpoint_off_grid"]="error"
-          if "net_settings" in proj:
-              proj["net_settings"]["netclass_patterns"]=[]
-          with open("RevD_G_v1_2_ERC.kicad_pro","w",encoding="utf-8") as f:
-              json.dump(proj,f,indent=2)
-
-          print(f"Generated native KiCad carrier: assigned_pins={len(pin_net)}")
+          import json, uuid
+          src="../rev-c-active-shunt/RevC_Active_Controller_v0.3.1.kicad_pro"
+          with open(src,encoding="utf-8") as f:
+              p=json.load(f)
+          root=str(uuid.uuid5(uuid.UUID("d3791df4-8b62-4ae1-8e92-0f3854a17eb6"),"root"))
+          p["boards"]=[]
+          p["meta"]["filename"]="RevD_G_v1_2_FULL.kicad_pro"
+          p["sheets"]=[[root,"Root"]]
+          p["erc"]["erc_exclusions"]=[]
+          # Full semantic ERC: do not suppress symbol, grid, drive, or connection checks.
+          for k in list(p["erc"]["rule_severities"]):
+              if p["erc"]["rule_severities"][k]=="ignore":
+                  p["erc"]["rule_severities"][k]="warning"
+          p["erc"]["rule_severities"]["lib_symbol_issues"]="warning"
+          p["erc"]["rule_severities"]["endpoint_off_grid"]="error"
+          if "net_settings" in p:
+              p["net_settings"]["netclass_patterns"]=[]
+          with open("RevD_G_v1_2_FULL.kicad_pro","w",encoding="utf-8") as f:
+              json.dump(p,f,indent=2)
           PY
+          cat SEMANTIC_STATIC_CHECK.txt
 
       - name: Pull official KiCad 9 image
         run: docker pull kicad/kicad:9.0
@@ -157,7 +58,7 @@ jobs:
       - name: KiCad version
         run: docker run --rm kicad/kicad:9.0 kicad-cli --version
 
-      - name: Run official KiCad schematic ERC on native authoritative carrier
+      - name: Run official full semantic ERC
         id: erc
         continue-on-error: true
         run: |
@@ -168,29 +69,34 @@ jobs:
             kicad-cli sch erc \
               --severity-all \
               --exit-code-violations \
-              --output /work/ci-reports/revdg-v12-erc.rpt \
-              RevD_G_v1_2_ERC.kicad_sch
+              --output /work/ci-reports/revdg-v12-full-erc.rpt \
+              RevD_G_v1_2_FULL.kicad_sch
 
-      - name: Print ERC report
+      - name: Print full ERC report
         if: always()
         run: |
-          echo "===== ERC ====="
-          test -f ci-reports/revdg-v12-erc.rpt && cat ci-reports/revdg-v12-erc.rpt || true
+          echo "===== FULL SEMANTIC ERC ====="
+          test -f ci-reports/revdg-v12-full-erc.rpt && cat ci-reports/revdg-v12-full-erc.rpt || true
           echo "ERC outcome: ${{ steps.erc.outcome }}"
 
-      - name: Upload ERC report and native carrier
+      - name: Upload formal schematic and ERC report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: revd-g-v12-kicad9-erc
+          name: revd-g-v12-full-semantic-erc
           path: |
             ci-reports/
-            hardware/rev-d-g-v1.2/RevD_G_v1_2_ERC.kicad_sch
-            hardware/rev-d-g-v1.2/RevD_G_v1_2_ERC.kicad_pro
-            hardware/rev-d-g-v1.2/RevDG.kicad_sym
+            hardware/rev-d-g-v1.2/RevD_G_v1_2_FULL.kicad_sch
+            hardware/rev-d-g-v1.2/RevD_G_v1_2_FULL.kicad_pro
+            hardware/rev-d-g-v1.2/RevDG_Semantic.kicad_sym
             hardware/rev-d-g-v1.2/sym-lib-table
+            hardware/rev-d-g-v1.2/NETLIST_v1.2.csv
+            hardware/rev-d-g-v1.2/BOM_v1.2_FULL.csv
+            hardware/rev-d-g-v1.2/NC_PINS_v1.2_FULL.csv
+            hardware/rev-d-g-v1.2/PINMAP_v1.2_FULL.csv
+            hardware/rev-d-g-v1.2/SEMANTIC_STATIC_CHECK.txt
           if-no-files-found: warn
 
-      - name: Enforce ERC pass
+      - name: Enforce full semantic ERC pass
         if: always()
         run: test "${{ steps.erc.outcome }}" = "success"
