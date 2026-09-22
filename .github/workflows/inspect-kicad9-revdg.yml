@@ -16,28 +16,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: docker pull kicad/kicad:9.0
-      - name: Dump Rev.D-G reference symbols
+      - name: Dump STM32G474R base symbol and selected references
         run: |
           mkdir -p inspect-out
           chmod 777 inspect-out
           docker run --rm -v "${{ github.workspace }}:/work" kicad/kicad:9.0 bash -lc '
             set -e
-            echo "===== STM32G474RCTx block ====="
-            sed -n "157063,157260p" /usr/share/kicad/symbols/MCU_ST_STM32G4.kicad_sym
-            echo "===== TLV9062 block ====="
-            sed -n "53463,53528p" /usr/share/kicad/symbols/Amplifier_Operational.kicad_sym
-            echo "===== INA240A1D block ====="
-            sed -n "4979,5211p" /usr/share/kicad/symbols/Amplifier_Current.kicad_sym
-            echo "===== TPS62163DSG block ====="
-            sed -n "160215,160360p" /usr/share/kicad/symbols/Regulator_Switching.kicad_sym
-            echo "===== TLV75533PDBV block ====="
-            sed -n "137086,137151p" /usr/share/kicad/symbols/Regulator_Linear.kicad_sym
-            echo "===== G5V-1 block ====="
-            sed -n "21496,21620p" /usr/share/kicad/symbols/Relay.kicad_sym
-            echo "===== 2N7002 block ====="
-            sed -n "43356,43424p" /usr/share/kicad/symbols/Transistor_FET.kicad_sym
-          ' | tee inspect-out/symbol-blocks.txt
+            f=/usr/share/kicad/symbols/MCU_ST_STM32G4.kicad_sym
+            line=$(grep -n -m1 "(symbol \"STM32G474R_B-C-E_Tx\"" "$f" | cut -d: -f1)
+            echo "BASE_LINE=$line"
+            start=$line
+            end=$((line+900))
+            sed -n "${start},${end}p" "$f"
+          ' | tee inspect-out/stm32g474r-base.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: revdg-kicad9-symbol-blocks
+          name: revdg-stm32g474r-base
           path: inspect-out/
