@@ -11,13 +11,13 @@ def uid(name): return str(uuid.uuid5(NS,name))
 PARTS_DATA="""U1|STM32G474RCT6|Package_QFP:LQFP-64_10x10mm_P0.5mm
 U2|TLV9062|Package_SO:SOIC-8_3.9x4.9mm_P1.27mm
 U3|INA240A1|Package_SO:SOIC-8_3.9x4.9mm_P1.27mm
-U4|TLV3202|Package_SO:VSSOP-8_3.0x3.0mm_P0.65mm
+U4|TLV3202|Package_SO:VSSOP-8_3x3mm_P0.65mm
 U5|SN74LVC1G332|Package_TO_SOT_SMD:SOT-23-6
-U6|LMG2100R044|Vendor:TI_RAR_VQFN-FCRLF_5.5x4.5mm
-U7|TPS62163|Package_SON:WSON-8_2x2mm_P0.5mm
+U6|LMG2100R044|
+U7|TPS62163|Package_SON:Texas_DSG0008A_WSON-8-1EP_2x2mm_P0.5mm_EP0.9x1.6mm
 U8|TLV75533P|Package_TO_SOT_SMD:SOT-23-5
-J1|TEST_A / GND|RevD:Terminal_2P_5.08
-J2|+12V / GND|RevD:Terminal_2P_5.08
+J1|TEST_A / GND|RevC:Terminal_2P_5.08
+J2|+12V / GND|RevC:Terminal_2P_5.08
 J3|SWD 1x5|Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical
 K1|G5V-1 DC12|Relay_THT:Relay_SPDT_Omron_G5V-1
 Q1|2N7002|Package_TO_SOT_SMD:SOT-23
@@ -45,7 +45,7 @@ R211|10.0k 0.1%|Resistor_SMD:R_0805_2012Metric
 C210|10uF 10V|Capacitor_SMD:C_1206_3216Metric
 C211|100nF|Capacitor_SMD:C_0603_1608Metric
 C212|100nF|Capacitor_SMD:C_0603_1608Metric
-C301|1.0uF 63V film 5%|RevD:C_FILM_P5
+C301|1.0uF 63V film 5%|RevC:C_FILM_P5
 R301|2.20R 1.5W pulse|Resistor_SMD:R_2512_6332Metric
 R302|0.330R 1W 1%|Resistor_SMD:R_2512_6332Metric
 R303|100R 1%|Resistor_SMD:R_0603_1608Metric
@@ -74,16 +74,16 @@ C603|1uF 16V X7R 0603|Capacitor_SMD:C_0603_1608Metric
 C604|2.2uF 25V X7R 0805|Capacitor_SMD:C_0805_2012Metric
 C605|2.2uF 25V X7R 0805|Capacitor_SMD:C_0805_2012Metric
 C606|100nF 50V X7R 0603|Capacitor_SMD:C_0603_1608Metric
-L601|0.56uH|Vendor:Bourns_SRP7028A
-L602|0.56uH|Vendor:Bourns_SRP7028A
-L603|0.56uH|Vendor:Bourns_SRP7028A
+L601|0.56uH|Inductor_SMD:L_Bourns_SRP7028A_7.3x6.6mm
+L602|0.56uH|Inductor_SMD:L_Bourns_SRP7028A_7.3x6.6mm
+L603|0.56uH|Inductor_SMD:L_Bourns_SRP7028A_7.3x6.6mm
 C611|68nF 50V X7R 0603|Capacitor_SMD:C_0603_1608Metric
 C612|68nF 50V X7R 0603|Capacitor_SMD:C_0603_1608Metric
 C613|68nF 50V X7R 0603|Capacitor_SMD:C_0603_1608Metric
 R701|1k|Resistor_SMD:R_0603_1608Metric
 R702|100k|Resistor_SMD:R_0603_1608Metric
 D701|SS14|Diode_SMD:D_SMA
-L801|2.2uH >=1.3A|Vendor:VLF3012
+L801|2.2uH >=1.3A|
 C801|10uF 25V X7R|Capacitor_SMD:C_0805_2012Metric
 C802|100nF 25V+|Capacitor_SMD:C_0603_1608Metric
 C803|22uF 10V X7R|Capacitor_SMD:C_1206_3216Metric
@@ -224,6 +224,10 @@ def write_outputs():
     (ROOT/"RevDG_Semantic.kicad_sym").write_text("\n".join(ext)+"\n",encoding="utf-8")
     (ROOT/"sym-lib-table").write_text('(sym_lib_table\n  (lib (name "RevDGSem")(type "KiCad")(uri "${KIPRJMOD}/RevDG_Semantic.kicad_sym")(options "")(descr "Rev.D-G v1.2 semantic device symbols"))\n)\n',encoding="utf-8")
 
+    (ROOT/"fp-lib-table").write_text('(fp_lib_table\\n  (lib (name "RevC")(type "KiCad")(uri "${KIPRJMOD}/../rev-c-active-shunt/RevC.pretty")(options "")(descr "Validated Rev.C shared footprints"))\\n)\\n',encoding="utf-8")
+    pending=[("U6","LMG2100R044","TI RAR land pattern pending exact vendor-footprint freeze"),("L801","VLF3012ST-2R2M1R4","TDK VLF3012 land pattern pending exact vendor-footprint freeze")]
+    with (ROOT/"FOOTPRINT_PENDING_v1.2.csv").open("w",encoding="utf-8-sig",newline="") as f:
+        w=csv.writer(f); w.writerow(["Ref","Part","Status"]); w.writerows(pending)
     out=['(kicad_sch (version 20220904) (generator "revdg_semantic_v12")',f'  (uuid {uid("root")})','  (paper "A0")','  (lib_symbols']
     for kind,pins in SYMS.items(): out+=symbol_expr(lib,kind,pins,True)
     out+=['  )']; inst=[]
