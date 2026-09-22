@@ -1,4 +1,4 @@
-name: Inspect KiCad 9 footprints for Rev.D-G
+name: Inspect KiCad 9 exact remaining footprints
 
 on:
   push:
@@ -16,11 +16,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: docker pull kicad/kicad:9.0
-      - name: Search installed footprints
+      - name: Search exact remaining footprints
         run: |
           docker run --rm kicad/kicad:9.0 bash -lc '
-            for p in               "*VSSOP*8*0.65*"               "*WSON*8*2x2*0.5*"               "*SRP7028*"               "*VLF3012*"               "*7.3x7.3*"               "*LMG2100*"               "*VQFN*5.5*4.5*"               "*RAR*" ; do
-              echo "===== $p ====="
-              find /usr/share/kicad/footprints -type f -name "$p.kicad_mod" -printf "%h/%f\n" 2>/dev/null | head -30
-            done
+            echo "===== WUERTH 691253510002 ====="
+            find /usr/share/kicad/footprints -type f | grep -Ei "691253510002|691253|Wuerth.*2.*5.08|TerminalBlock_Wuerth" | head -80 || true
+            echo "===== C 7.2 x 5.0 P5 ====="
+            find /usr/share/kicad/footprints/Capacitor_THT.pretty -type f | grep -Ei "7.2.*5.0.*P5|P5.00.*7.2|L7.2.*W5" | head -50 || true
           '
