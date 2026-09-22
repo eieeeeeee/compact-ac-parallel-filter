@@ -16,8 +16,8 @@ U5|SN74LVC1G332|Package_TO_SOT_SMD:SOT-23-6
 U6|LMG2100R044|
 U7|TPS62163|Package_SON:Texas_DSG0008A_WSON-8-1EP_2x2mm_P0.5mm_EP0.9x1.6mm
 U8|TLV75533P|Package_TO_SOT_SMD:SOT-23-5
-J1|TEST_A / GND|RevC:Terminal_2P_5.08
-J2|+12V / GND|RevC:Terminal_2P_5.08
+J1|TEST_A / GND|
+J2|+12V / GND|
 J3|SWD 1x5|Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical
 K1|G5V-1 DC12|Relay_THT:Relay_SPDT_Omron_G5V-1
 Q1|2N7002|Package_TO_SOT_SMD:SOT-23
@@ -45,7 +45,7 @@ R211|10.0k 0.1%|Resistor_SMD:R_0805_2012Metric
 C210|10uF 10V|Capacitor_SMD:C_1206_3216Metric
 C211|100nF|Capacitor_SMD:C_0603_1608Metric
 C212|100nF|Capacitor_SMD:C_0603_1608Metric
-C301|1.0uF 63V film 5%|RevC:C_FILM_P5
+C301|1.0uF 63V film 5%|Capacitor_THT:C_Rect_L7.2mm_W5.0mm_P5.00mm
 R301|2.20R 1.5W pulse|Resistor_SMD:R_2512_6332Metric
 R302|0.330R 1W 1%|Resistor_SMD:R_2512_6332Metric
 R303|100R 1%|Resistor_SMD:R_0603_1608Metric
@@ -225,7 +225,7 @@ def write_outputs():
     (ROOT/"sym-lib-table").write_text('(sym_lib_table\n  (lib (name "RevDGSem")(type "KiCad")(uri "${KIPRJMOD}/RevDG_Semantic.kicad_sym")(options "")(descr "Rev.D-G v1.2 semantic device symbols"))\n)\n',encoding="utf-8")
 
     (ROOT/"fp-lib-table").write_text('(fp_lib_table\n  (lib (name "RevC")(type "KiCad")(uri "${KIPRJMOD}/RevC.pretty")(options "")(descr "Validated Rev.C shared footprints"))\n)\n',encoding="utf-8")
-    pending=[("U6","LMG2100R044","TI RAR land pattern pending exact vendor-footprint freeze"),("L801","VLF3012ST-2R2M1R4","TDK VLF3012 land pattern pending exact vendor-footprint freeze")]
+    pending=[("J1","Wurth 691253510002","Exact manufacturer footprint freeze pending PCB stage"),("J2","Wurth 691253510002","Exact manufacturer footprint freeze pending PCB stage"),("U6","LMG2100R044","TI RAR land pattern pending exact vendor-footprint freeze"),("L801","VLF3012ST-2R2M1R4","TDK VLF3012 land pattern pending exact vendor-footprint freeze")]
     with (ROOT/"FOOTPRINT_PENDING_v1.2.csv").open("w",encoding="utf-8-sig",newline="") as f:
         w=csv.writer(f); w.writerow(["Ref","Part","Status"]); w.writerows(pending)
     out=['(kicad_sch (version 20220904) (generator "revdg_semantic_v12")',f'  (uuid {uid("root")})','  (paper "A0")','  (lib_symbols']
