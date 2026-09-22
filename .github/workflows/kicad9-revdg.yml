@@ -49,8 +49,27 @@ jobs:
           def uid(name):
               return str(uuid.uuid5(NS, name))
 
-          out = []
-          out += [
+          # Register the local library so KiCad ERC does not flag the embedded symbol's library ID.
+          sym = [
+              '(kicad_symbol_lib (version 20220914) (generator "revdg_v12_ci")',
+              '  (symbol "NETPIN" (pin_numbers hide) (pin_names (offset 0)) (in_bom no) (on_board no)',
+              '    (property "Reference" "X" (at 0 -2.54 0) (effects (font (size 1.0 1.0))))',
+              '    (property "Value" "NETPIN" (at 0 2.54 0) (effects (font (size 1.0 1.0))))',
+              '    (property "Footprint" "" (at 0 0 0) (effects (font (size 1.0 1.0)) hide))',
+              '    (property "Datasheet" "~" (at 0 0 0) (effects (font (size 1.0 1.0)) hide))',
+              '    (symbol "NETPIN_0_1" (rectangle (start -1.27 -1.27) (end 1.27 1.27) (stroke (width 0.254) (type default)) (fill (type none))))',
+              '    (symbol "NETPIN_1_1"',
+              '      (pin passive line (at -3.81 0 0) (length 2.54) (name "P" (effects (font (size 1 1)))) (number "1" (effects (font (size 1 1)))))',
+              '    )',
+              '  )',
+              ')',
+          ]
+          open("RevDG.kicad_sym","w",encoding="utf-8").write("\n".join(sym)+"\n")
+          open("sym-lib-table","w",encoding="utf-8").write(
+              '(sym_lib_table\n  (lib (name "RevDG")(type "KiCad")(uri "${KIPRJMOD}/RevDG.kicad_sym")(options "")(descr "Rev.D-G v1.2 ERC carrier symbol"))\n)\n'
+          )
+
+          out = [
               '(kicad_sch (version 20220904) (generator "revdg_v12_ci")',
               f'  (uuid {uid("root")})',
               '  (paper "A0")',
@@ -70,10 +89,11 @@ jobs:
 
           instance_rows=[]
           cols=12
-          x0=20.0
-          y0=20.0
-          xstep=22.0
-          ystep=11.0
+          # All placement coordinates are exact 50-mil (1.27-mm) multiples.
+          x0=20.32       # 800 mil
+          y0=20.32
+          xstep=25.40    # 1000 mil
+          ystep=12.70    # 500 mil
 
           for i,(actual_pin,net) in enumerate(sorted(pin_net.items()), start=1):
               col=(i-1)%cols
@@ -91,12 +111,13 @@ jobs:
                   '    (in_bom no) (on_board no)',
                   f'    (uuid {suid})',
                   f'    (default_instance (reference "{ref}") (unit 1) (value "{safeval}") (footprint ""))',
-                  f'    (property "Reference" "{ref}" (id 0) (at {x:.2f} {y-3.0:.2f} 0) (effects (font (size 0.8 0.8)) hide))',
-                  f'    (property "Value" "{safeval}" (id 1) (at {x:.2f} {y+3.0:.2f} 0) (effects (font (size 0.75 0.75))))',
+                  f'    (property "Reference" "{ref}" (id 0) (at {x:.2f} {y-2.54:.2f} 0) (effects (font (size 0.8 0.8)) hide))',
+                  f'    (property "Value" "{safeval}" (id 1) (at {x:.2f} {y+2.54:.2f} 0) (effects (font (size 0.75 0.75))))',
                   f'    (property "Footprint" "" (id 2) (at {x:.2f} {y:.2f} 0) (effects (font (size 1.0 1.0)) hide))',
                   f'    (property "Datasheet" "~" (id 3) (at {x:.2f} {y:.2f} 0) (effects (font (size 1.0 1.0)) hide))',
                   f'    (pin "1" (uuid {puid}))',
                   '  )',
+                  # Same proven geometry used by Rev.C: label at the one-pin symbol connection point.
                   f'  (label "{safe_net}" (at {x-3.81:.2f} {y:.2f} 0) (effects (font (size 0.8 0.8)) (justify left bottom)) (uuid {luid}))',
               ]
               instance_rows.append(
@@ -150,6 +171,8 @@ jobs:
           path: |
             ci-reports/
             hardware/rev-d-g-v1.2/RevD_G_v1_2_ERC.kicad_sch
+            hardware/rev-d-g-v1.2/RevDG.kicad_sym
+            hardware/rev-d-g-v1.2/sym-lib-table
           if-no-files-found: warn
 
       - name: Enforce ERC pass
