@@ -25,14 +25,12 @@ jobs:
           mkdir -p ci-reports
           chmod 777 ci-reports
 
-      - name: Generate direct-wire ERC carrier from authoritative netlist
+      - name: Generate native KiCad 9 ERC carrier from authoritative netlist
         run: |
           cd hardware/rev-d-g-v1.2
           python3 - <<'PY'
-          import csv, math
-          from collections import defaultdict
+          import csv, uuid
 
-          net_pins = defaultdict(list)
           pin_net = {}
           with open("NETLIST_v1.2.csv", encoding="utf-8-sig") as f:
               rd = csv.reader(f)
@@ -46,115 +44,75 @@ jobs:
                       if pin in pin_net and pin_net[pin] != net:
                           raise SystemExit(f"Pin {pin} appears on both {pin_net[pin]} and {net}")
                       pin_net[pin] = net
-                      net_pins[net].append(pin)
 
-          # A one-pin passive symbol with a zero-length pin.
-          # Every authoritative net is represented by direct copper/wire connections,
-          # so no electrical labels are needed in the carrier.
-          lib = [
-              "EESchema-LIBRARY Version 2.4",
-              "#encoding utf-8",
-              "#",
-              "# NETPIN",
-              "#",
-              "DEF NETPIN X 0 40 Y Y 1 F N",
-              'F0 "X" 0 130 35 H V C CNN',
-              'F1 "NETPIN" 0 -130 30 H V C CNN',
-              "DRAW",
-              "S -100 90 100 -90 0 1 8 f",
-              "X P 1 -100 0 0 R 30 30 1 1 P",
-              "ENDDRAW",
-              "ENDDEF",
-              "#",
-              "#End Library",
-          ]
-          open("RevD_G_v1_2_ERC-cache.lib","w",encoding="utf-8").write("\n".join(lib)+"\n")
+          NS = uuid.UUID("5f9d3a02-c4d4-4d28-b0b8-a0712d4fa312")
+          def uid(name):
+              return str(uuid.uuid5(NS, name))
 
-          sch = [
-              "EESchema Schematic File Version 4",
-              "LIBS:RevD_G_v1_2_ERC-cache",
-              "EELAYER 29 0",
-              "EELAYER END",
-              "$Descr A0 46811 33110",
-              "Sheet 1 1",
-              'Title "Rev.D-G v1.2 Authoritative Direct-Wire ERC Carrier"',
-              'Date "2026-09-22"',
-              'Rev "v1.2-ERC3"',
-              'Comp "LOW-VOLTAGE connectivity carrier"',
-              'Comment1 "Generated directly from NETLIST_v1.2.csv"',
-              'Comment2 "NOT FOR DIRECT AC100V CONNECTION"',
-              "$EndDescr",
+          out = []
+          out += [
+              '(kicad_sch (version 20220904) (generator "revdg_v12_ci")',
+              f'  (uuid {uid("root")})',
+              '  (paper "A0")',
+              '  (lib_symbols',
+              '    (symbol "RevDG:NETPIN" (pin_numbers hide) (pin_names (offset 0)) (in_bom no) (on_board no)',
+              '      (property "Reference" "X" (at 0 -2.54 0) (effects (font (size 1.0 1.0))))',
+              '      (property "Value" "NETPIN" (at 0 2.54 0) (effects (font (size 1.0 1.0))))',
+              '      (property "Footprint" "" (at 0 0 0) (effects (font (size 1.0 1.0)) hide))',
+              '      (property "Datasheet" "~" (at 0 0 0) (effects (font (size 1.0 1.0)) hide))',
+              '      (symbol "NETPIN_0_1" (rectangle (start -1.27 -1.27) (end 1.27 1.27) (stroke (width 0.254) (type default)) (fill (type none))))',
+              '      (symbol "NETPIN_1_1"',
+              '        (pin passive line (at -3.81 0 0) (length 2.54) (name "P" (effects (font (size 1 1)))) (number "1" (effects (font (size 1 1)))))',
+              '      )',
+              '    )',
+              '  )',
           ]
 
-          max_per_row = 12
-          x0 = 2500
-          xstep = 3300
-          y = 1300
-          ystep = 500
-          comp_index = 0
+          instance_rows=[]
+          cols=12
+          x0=20.0
+          y0=20.0
+          xstep=22.0
+          ystep=11.0
 
-          for net in sorted(net_pins):
-              pins = sorted(net_pins[net])
-              chunks = [pins[i:i+max_per_row] for i in range(0,len(pins),max_per_row)]
-              row_ys = []
-
-              # Net name is documentation only, not an electrical label.
-              sch += [
-                  f"Text Notes 500 {y} 0    45   ~ 9",
-                  net,
+          for i,(actual_pin,net) in enumerate(sorted(pin_net.items()), start=1):
+              col=(i-1)%cols
+              row=(i-1)//cols
+              x=x0+col*xstep
+              y=y0+row*ystep
+              suid=uid(f"sym:{actual_pin}")
+              puid=uid(f"pin:{actual_pin}")
+              luid=uid(f"label:{actual_pin}")
+              ref=f"X{i}"
+              safeval=actual_pin.replace('"',"'")
+              safe_net=net.replace('"',"'")
+              out += [
+                  f'  (symbol (lib_id "RevDG:NETPIN") (at {x:.2f} {y:.2f} 0) (unit 1)',
+                  '    (in_bom no) (on_board no)',
+                  f'    (uuid {suid})',
+                  f'    (default_instance (reference "{ref}") (unit 1) (value "{safeval}") (footprint ""))',
+                  f'    (property "Reference" "{ref}" (id 0) (at {x:.2f} {y-3.0:.2f} 0) (effects (font (size 0.8 0.8)) hide))',
+                  f'    (property "Value" "{safeval}" (id 1) (at {x:.2f} {y+3.0:.2f} 0) (effects (font (size 0.75 0.75))))',
+                  f'    (property "Footprint" "" (id 2) (at {x:.2f} {y:.2f} 0) (effects (font (size 1.0 1.0)) hide))',
+                  f'    (property "Datasheet" "~" (id 3) (at {x:.2f} {y:.2f} 0) (effects (font (size 1.0 1.0)) hide))',
+                  f'    (pin "1" (uuid {puid}))',
+                  '  )',
+                  f'  (label "{safe_net}" (at {x-3.81:.2f} {y:.2f} 0) (effects (font (size 0.8 0.8)) (justify left bottom)) (uuid {luid}))',
               ]
+              instance_rows.append(
+                  f'    (path "/{suid}" (reference "{ref}") (unit 1) (value "{safeval}") (footprint ""))'
+              )
 
-              for chunk_i, chunk in enumerate(chunks):
-                  yy = y + chunk_i*ystep
-                  row_ys.append(yy)
-                  endpoints = []
-                  for j, actual_pin in enumerate(chunk):
-                      x = x0 + j*xstep
-                      comp_index += 1
-                      ref = f"X{comp_index}"
-                      uid = 0x30000000 + comp_index
-                      sch += [
-                          "$Comp",
-                          f"L NETPIN {ref}",
-                          "U 1 1 %08X"%uid,
-                          f"P {x} {yy}",
-                          f'F 0 "{ref}" H {x} {yy-120} 30  0001 C CNN',
-                          f'F 1 "{actual_pin}" H {x+120} {yy+125} 28  0000 C CNN',
-                          f"\t1    {x} {yy}",
-                          "\t1    0    0    -1",
-                          "$EndComp",
-                      ]
-                      endpoints.append(x-100)
-
-                  if len(endpoints) >= 2:
-                      sch += [
-                          "Wire Wire Line",
-                          f"\t{min(endpoints)} {yy} {max(endpoints)} {yy}",
-                      ]
-                  else:
-                      # Give a one-pin net a local stub so its pin is not graphically naked.
-                      sch += [
-                          "Wire Wire Line",
-                          f"\t{endpoints[0]} {yy} {endpoints[0]-200} {yy}",
-                      ]
-
-              # Join multiple rows of the same authoritative net using the first pin point.
-              if len(row_ys) > 1:
-                  trunk_x = x0-100
-                  sch += [
-                      "Wire Wire Line",
-                      f"\t{trunk_x} {row_ys[0]} {trunk_x} {row_ys[-1]}",
-                  ]
-
-              y += len(chunks)*ystep + 120
-
-          sch += [
-              "Text Notes 500 32300 0    90   ~ 20",
-              "DIRECT-WIRE CARRIER GENERATED FROM NETLIST_v1.2.csv — LOW-VOLTAGE ONLY.",
-              "$EndSCHEMATC",
+          out += [
+              '  (sheet_instances (path "/" (page "1")))',
+              '  (symbol_instances',
+              *instance_rows,
+              '  )',
+              ')',
           ]
-          open("RevD_G_v1_2_ERC.sch","w",encoding="utf-8").write("\n".join(sch)+"\n")
-          print(f"Generated nets={len(net_pins)} assigned_pins={len(pin_net)} carrier_symbols={comp_index}")
+
+          open("RevD_G_v1_2_ERC.kicad_sch","w",encoding="utf-8").write("\n".join(out)+"\n")
+          print(f"Generated native KiCad carrier: assigned_pins={len(pin_net)}")
           PY
 
       - name: Pull official KiCad 9 image
@@ -163,7 +121,7 @@ jobs:
       - name: KiCad version
         run: docker run --rm kicad/kicad:9.0 kicad-cli --version
 
-      - name: Run official KiCad schematic ERC on authoritative carrier
+      - name: Run official KiCad schematic ERC on native authoritative carrier
         id: erc
         continue-on-error: true
         run: |
@@ -175,7 +133,7 @@ jobs:
               --severity-all \
               --exit-code-violations \
               --output /work/ci-reports/revdg-v12-erc.rpt \
-              RevD_G_v1_2_ERC.sch
+              RevD_G_v1_2_ERC.kicad_sch
 
       - name: Print ERC report
         if: always()
@@ -184,15 +142,14 @@ jobs:
           test -f ci-reports/revdg-v12-erc.rpt && cat ci-reports/revdg-v12-erc.rpt || true
           echo "ERC outcome: ${{ steps.erc.outcome }}"
 
-      - name: Upload ERC report and carrier
+      - name: Upload ERC report and native carrier
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: revd-g-v12-kicad9-erc
           path: |
             ci-reports/
-            hardware/rev-d-g-v1.2/RevD_G_v1_2_ERC.sch
-            hardware/rev-d-g-v1.2/RevD_G_v1_2_ERC-cache.lib
+            hardware/rev-d-g-v1.2/RevD_G_v1_2_ERC.kicad_sch
           if-no-files-found: warn
 
       - name: Enforce ERC pass
