@@ -1,0 +1,62 @@
+name: KiCad 9 Rev.C ERC/DRC
+
+on:
+  push:
+    branches:
+      - rev-c-active-shunt-v0.3
+    paths:
+      - 'hardware/rev-c-active-shunt/**'
+      - '.github/workflows/kicad9-revc.yml'
+  pull_request:
+    paths:
+      - 'hardware/rev-c-active-shunt/**'
+      - '.github/workflows/kicad9-revc.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  erc-drc:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare reports directory
+        run: mkdir -p ci-reports
+
+      - name: Pull official KiCad 9 image
+        run: docker pull kicad/kicad:9.0
+
+      - name: KiCad version
+        run: docker run --rm kicad/kicad:9.0 kicad-cli --version
+
+      - name: Run schematic ERC
+        id: erc
+        continue-on-error: true
+        run: |
+          docker run --rm             -v "${{ github.workspace }}:/work"             -w /work             kicad/kicad:9.0             kicad-cli sch erc               --severity-all               --exit-code-violations               --output ci-reports/revc-erc.rpt               hardware/rev-c-active-shunt/RevC_Active_Controller_v0.3.kicad_sch
+
+      - name: Run PCB DRC and schematic parity
+        id: drc
+        continue-on-error: true
+        run: |
+          docker run --rm             -v "${{ github.workspace }}:/work"             -w /work             kicad/kicad:9.0             kicad-cli pcb drc               --severity-all               --all-track-errors               --schematic-parity               --exit-code-violations               --output ci-reports/revc-drc.rpt               hardware/rev-c-active-shunt/RevC_Active_Controller_v0.3.kicad_pcb
+
+      - name: Upload ERC/DRC reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: revc-kicad9-erc-drc
+          path: ci-reports/
+          if-no-files-found: warn
+
+      - name: Enforce ERC/DRC pass
+        if: always()
+        run: |
+          echo "ERC outcome: ${{ steps.erc.outcome }}"
+          echo "DRC outcome: ${{ steps.drc.outcome }}"
+          test "${{ steps.erc.outcome }}" = "success"
+          test "${{ steps.drc.outcome }}" = "success"
