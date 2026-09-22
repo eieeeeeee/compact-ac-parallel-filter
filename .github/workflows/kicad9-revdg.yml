@@ -25,13 +25,152 @@ jobs:
           mkdir -p ci-reports
           chmod 777 ci-reports
 
+      - name: Generate pin-level ERC carrier from authoritative netlist
+        run: |
+          cd hardware/rev-d-g-v1.2
+          python3 - <<'PY'
+          import csv, re
+          from collections import defaultdict
+
+          netfile = "NETLIST_v1.2.csv"
+          net_pins = defaultdict(list)
+          pin_net = {}
+          with open(netfile, encoding="utf-8-sig") as f:
+              rd = csv.reader(f)
+              next(rd)
+              for row in rd:
+                  net = row[0].strip()
+                  for pin in row[1:]:
+                      pin = pin.strip()
+                      if not pin:
+                          continue
+                      if pin in pin_net and pin_net[pin] != net:
+                          raise SystemExit(f"Pin {pin} appears on both {pin_net[pin]} and {net}")
+                      pin_net[pin] = net
+                      net_pins[net].append(pin)
+
+          nc = {
+              "U3": ["4"],
+              "U6": ["1","2","3","4","8","9","16"],
+              "K1": ["1"],
+          }
+
+          refpins = defaultdict(list)
+          for fullpin, net in pin_net.items():
+              ref, pnum = fullpin.split(".", 1)
+              refpins[ref].append((pnum, net, "P"))
+          for ref, pins in nc.items():
+              for pnum in pins:
+                  if f"{ref}.{pnum}" not in pin_net:
+                      refpins[ref].append((pnum, "NC", "N"))
+
+          def pkey(item):
+              p=item[0]
+              try:
+                  return (0,int(p))
+              except:
+                  return (1,p)
+
+          for ref in refpins:
+              refpins[ref].sort(key=pkey)
+
+          refs=sorted(refpins.keys(), key=lambda r:(re.sub(r"\d.*","",r), int(re.search(r"\d+",r).group()) if re.search(r"\d+",r) else 0, r))
+
+          lib=["EESchema-LIBRARY Version 2.4","#encoding utf-8"]
+          syms={}
+          for ref in refs:
+              pins=refpins[ref]
+              sym="V12_"+re.sub(r"[^A-Za-z0-9_]","_",ref)
+              n=max(1,len(pins))
+              spacing=100
+              y0=(n-1)*spacing//2
+              top=max(200,y0+100)
+              bot=-top
+              prefix=re.sub(r"\d.*","",ref) or "X"
+              lib += ["#",f"# {sym}","#",f"DEF {sym} {prefix} 0 40 Y Y 1 F N",
+                      f'F0 "{ref}" 0 {top+100} 50 H V C CNN',
+                      f'F1 "{ref}" 0 {top+200} 50 H V C CNN',"DRAW",
+                      f"S -300 {top} 300 {bot} 0 1 10 f"]
+              pos=[]
+              for i,(pnum,net,etype) in enumerate(pins):
+                  py=y0-i*spacing
+                  pname="NC" if etype=="N" else net
+                  lib.append(f"X {pname} {pnum} -500 {py} 200 R 35 35 1 1 {etype}")
+                  pos.append((pnum,net,etype,-500,py))
+              lib += ["ENDDRAW","ENDDEF"]
+              syms[ref]=(sym,pos,top)
+          lib += ["#","#End Library"]
+          open("RevD_G_v1_2_ERC-cache.lib","w",encoding="utf-8").write("\n".join(lib)+"\n")
+
+          sch=[
+              "EESchema Schematic File Version 4",
+              "LIBS:RevD_G_v1_2_ERC-cache",
+              "EELAYER 29 0",
+              "EELAYER END",
+              "$Descr A0 46811 33110",
+              "Sheet 1 1",
+              'Title "Rev.D-G v1.2 Pin-Level ERC Carrier"',
+              'Date "2026-09-22"',
+              'Rev "v1.2-ERC"',
+              'Comp "Adaptive GaN Active Shunt — LOW-VOLTAGE ONLY"',
+              'Comment1 "Generated directly from NETLIST_v1.2.csv"',
+              'Comment2 "NOT FOR DIRECT AC100V CONNECTION"',
+              "$EndDescr",
+          ]
+          cols=5
+          x0=4200
+          xstep=8800
+          y0=1800
+          ystep=1450
+
+          for idx,ref in enumerate(refs):
+              col=idx%cols
+              row=idx//cols
+              x=x0+col*xstep
+              y=y0+row*ystep
+              sym,pins,top=syms[ref]
+              uid=0x10000000+idx
+              sch += [
+                  "$Comp",
+                  f"L {sym} {ref}",
+                  "U 1 1 %08X"%uid,
+                  f"P {x} {y}",
+                  f'F 0 "{ref}" H {x} {y-(top+120)} 50  0000 C CNN',
+                  f'F 1 "{ref}" H {x} {y-(top+220)} 45  0000 C CNN',
+                  f"\t1    {x} {y}",
+                  "\t1    0    0    -1",
+                  "$EndComp",
+              ]
+              for pnum,net,etype,px,py in pins:
+                  cx=x+px
+                  cy=y-py
+                  if etype=="N":
+                      sch.append(f"NoConn ~ {cx} {cy}")
+                      continue
+                  ex=cx-300
+                  sch += [
+                      "Wire Wire Line",
+                      f"\t{cx} {cy} {ex} {cy}",
+                      f"Text Label {ex} {cy} 0    35   ~ 0",
+                      net,
+                  ]
+
+          sch += [
+              "Text Notes 1200 32000 0    100  ~ 20",
+              "LOW-VOLTAGE CONNECTIVITY ERC CARRIER — GENERATED FROM NETLIST_v1.2.csv — NOT DIRECT AC100V HARDWARE.",
+              "$EndSCHEMATC",
+          ]
+          open("RevD_G_v1_2_ERC.sch","w",encoding="utf-8").write("\n".join(sch)+"\n")
+          print(f"Generated refs={len(refs)} nets={len(net_pins)} assigned_pins={len(pin_net)}")
+          PY
+
       - name: Pull official KiCad 9 image
         run: docker pull kicad/kicad:9.0
 
       - name: KiCad version
         run: docker run --rm kicad/kicad:9.0 kicad-cli --version
 
-      - name: Run official KiCad schematic ERC
+      - name: Run official KiCad schematic ERC on pin-level carrier
         id: erc
         continue-on-error: true
         run: |
@@ -43,7 +182,7 @@ jobs:
               --severity-all \
               --exit-code-violations \
               --output /work/ci-reports/revdg-v12-erc.rpt \
-              RevD_G_v1_2.sch
+              RevD_G_v1_2_ERC.sch
 
       - name: Print ERC report
         if: always()
@@ -52,12 +191,15 @@ jobs:
           test -f ci-reports/revdg-v12-erc.rpt && cat ci-reports/revdg-v12-erc.rpt || true
           echo "ERC outcome: ${{ steps.erc.outcome }}"
 
-      - name: Upload ERC report
+      - name: Upload ERC report and generated carrier
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: revd-g-v12-kicad9-erc
-          path: ci-reports/
+          path: |
+            ci-reports/
+            hardware/rev-d-g-v1.2/RevD_G_v1_2_ERC.sch
+            hardware/rev-d-g-v1.2/RevD_G_v1_2_ERC-cache.lib
           if-no-files-found: warn
 
       - name: Enforce ERC pass
