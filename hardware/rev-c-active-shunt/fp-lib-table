@@ -1,3 +1,4 @@
 (fp_lib_table
+  (version 7)
   (lib (name "RevC")(type "KiCad")(uri "${KIPRJMOD}/RevC.pretty")(options "")(descr "Rev.C v0.3 custom footprints"))
 )
