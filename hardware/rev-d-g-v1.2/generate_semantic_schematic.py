@@ -224,7 +224,7 @@ def write_outputs():
     (ROOT/"RevDG_Semantic.kicad_sym").write_text("\n".join(ext)+"\n",encoding="utf-8")
     (ROOT/"sym-lib-table").write_text('(sym_lib_table\n  (lib (name "RevDGSem")(type "KiCad")(uri "${KIPRJMOD}/RevDG_Semantic.kicad_sym")(options "")(descr "Rev.D-G v1.2 semantic device symbols"))\n)\n',encoding="utf-8")
 
-    (ROOT/"fp-lib-table").write_text('(fp_lib_table\\n  (lib (name "RevC")(type "KiCad")(uri "${KIPRJMOD}/../rev-c-active-shunt/RevC.pretty")(options "")(descr "Validated Rev.C shared footprints"))\\n)\\n',encoding="utf-8")
+    (ROOT/"fp-lib-table").write_text('(fp_lib_table\n  (lib (name "RevC")(type "KiCad")(uri "${KIPRJMOD}/../rev-c-active-shunt/RevC.pretty")(options "")(descr "Validated Rev.C shared footprints"))\n)\n',encoding="utf-8")
     pending=[("U6","LMG2100R044","TI RAR land pattern pending exact vendor-footprint freeze"),("L801","VLF3012ST-2R2M1R4","TDK VLF3012 land pattern pending exact vendor-footprint freeze")]
     with (ROOT/"FOOTPRINT_PENDING_v1.2.csv").open("w",encoding="utf-8-sig",newline="") as f:
         w=csv.writer(f); w.writerow(["Ref","Part","Status"]); w.writerows(pending)
