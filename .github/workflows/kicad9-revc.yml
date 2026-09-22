@@ -41,13 +41,13 @@ jobs:
         run: |
           docker run --rm \
             -v "${{ github.workspace }}:/work" \
-            -w /work \
+            -w /work/hardware/rev-c-active-shunt \
             kicad/kicad:9.0 \
             kicad-cli sch erc \
               --severity-all \
               --exit-code-violations \
-              --output ci-reports/revc-erc.rpt \
-              hardware/rev-c-active-shunt/RevC_Active_Controller_v0.3.kicad_sch
+              --output /work/ci-reports/revc-erc.rpt \
+              RevC_Active_Controller_v0.3.kicad_sch
 
       - name: Run PCB DRC and schematic parity
         id: drc
@@ -55,15 +55,15 @@ jobs:
         run: |
           docker run --rm \
             -v "${{ github.workspace }}:/work" \
-            -w /work \
+            -w /work/hardware/rev-c-active-shunt \
             kicad/kicad:9.0 \
             kicad-cli pcb drc \
               --severity-all \
               --all-track-errors \
               --schematic-parity \
               --exit-code-violations \
-              --output ci-reports/revc-drc.rpt \
-              hardware/rev-c-active-shunt/RevC_Active_Controller_v0.3.kicad_pcb
+              --output /work/ci-reports/revc-drc.rpt \
+              RevC_Active_Controller_v0.3.kicad_pcb
 
       - name: Print ERC/DRC reports
         if: always()
