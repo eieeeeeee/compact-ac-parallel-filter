@@ -26,7 +26,7 @@ jobs:
             line=$(grep -n -m1 "(symbol \"STM32G474R_B-C-E_Tx\"" "$f" | cut -d: -f1)
             echo "BASE_LINE=$line"
             start=$line
-            end=$((line+900))
+            end=$((line+2600))
             sed -n "${start},${end}p" "$f"
           ' | tee inspect-out/stm32g474r-base.txt
       - uses: actions/upload-artifact@v4
