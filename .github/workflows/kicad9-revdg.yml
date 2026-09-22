@@ -1,0 +1,63 @@
+name: KiCad 9 Rev.D-G v1.2 ERC
+
+on:
+  push:
+    branches:
+      - rev-d-g-v1.2
+    paths:
+      - 'hardware/rev-d-g-v1.2/**'
+      - '.github/workflows/kicad9-revdg.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  erc:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare report directory
+        run: mkdir -p ci-reports
+
+      - name: Pull official KiCad 9 image
+        run: docker pull kicad/kicad:9.0
+
+      - name: KiCad version
+        run: docker run --rm kicad/kicad:9.0 kicad-cli --version
+
+      - name: Run official KiCad schematic ERC
+        id: erc
+        continue-on-error: true
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/work" \
+            -w /work/hardware/rev-d-g-v1.2 \
+            kicad/kicad:9.0 \
+            kicad-cli sch erc \
+              --severity-all \
+              --exit-code-violations \
+              --output /work/ci-reports/revdg-v12-erc.rpt \
+              RevD_G_v1_2.sch
+
+      - name: Print ERC report
+        if: always()
+        run: |
+          echo "===== ERC ====="
+          test -f ci-reports/revdg-v12-erc.rpt && cat ci-reports/revdg-v12-erc.rpt || true
+          echo "ERC outcome: ${{ steps.erc.outcome }}"
+
+      - name: Upload ERC report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: revd-g-v12-kicad9-erc
+          path: ci-reports/
+          if-no-files-found: warn
+
+      - name: Enforce ERC pass
+        if: always()
+        run: test "${{ steps.erc.outcome }}" = "success"
