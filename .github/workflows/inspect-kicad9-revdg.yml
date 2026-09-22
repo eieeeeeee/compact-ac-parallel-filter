@@ -16,19 +16,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: docker pull kicad/kicad:9.0
-      - name: Search installed KiCad symbols
+      - name: Dump Rev.D-G reference symbols
         run: |
           mkdir -p inspect-out
           chmod 777 inspect-out
           docker run --rm -v "${{ github.workspace }}:/work" kicad/kicad:9.0 bash -lc '
             set -e
-            for q in STM32G474RCTx STM32G474RCT6 TLV9062 INA240A1 TLV3202 SN74LVC1G332 LMG2100 TPS62163 TLV75533 G5V-1 2N7002; do
-              echo "===== $q ====="
-              grep -R -n -m 5 "\"$q\"" /usr/share/kicad/symbols/*.kicad_sym 2>/dev/null || true
-              grep -R -n -m 5 "$q" /usr/share/kicad/symbols/*.kicad_sym 2>/dev/null || true
-            done
-          ' | tee inspect-out/symbol-search.txt
+            echo "===== STM32G474RCTx block ====="
+            sed -n "157063,157260p" /usr/share/kicad/symbols/MCU_ST_STM32G4.kicad_sym
+            echo "===== TLV9062 block ====="
+            sed -n "53463,53528p" /usr/share/kicad/symbols/Amplifier_Operational.kicad_sym
+            echo "===== INA240A1D block ====="
+            sed -n "4979,5211p" /usr/share/kicad/symbols/Amplifier_Current.kicad_sym
+            echo "===== TPS62163DSG block ====="
+            sed -n "160215,160360p" /usr/share/kicad/symbols/Regulator_Switching.kicad_sym
+            echo "===== TLV75533PDBV block ====="
+            sed -n "137086,137151p" /usr/share/kicad/symbols/Regulator_Linear.kicad_sym
+            echo "===== G5V-1 block ====="
+            sed -n "21496,21620p" /usr/share/kicad/symbols/Relay.kicad_sym
+            echo "===== 2N7002 block ====="
+            sed -n "43356,43424p" /usr/share/kicad/symbols/Transistor_FET.kicad_sym
+          ' | tee inspect-out/symbol-blocks.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: revdg-kicad9-symbol-search
+          name: revdg-kicad9-symbol-blocks
           path: inspect-out/
