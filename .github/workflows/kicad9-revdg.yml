@@ -90,6 +90,9 @@ jobs:
             hardware/rev-d-g-v1.2/RevD_G_v1_2_FULL.kicad_pro
             hardware/rev-d-g-v1.2/RevDG_Semantic.kicad_sym
             hardware/rev-d-g-v1.2/sym-lib-table
+            hardware/rev-d-g-v1.2/fp-lib-table
+            hardware/rev-d-g-v1.2/generate_semantic_schematic.py
+            hardware/rev-d-g-v1.2/FOOTPRINT_PENDING_v1.2.csv
             hardware/rev-d-g-v1.2/NETLIST_v1.2.csv
             hardware/rev-d-g-v1.2/BOM_v1.2_FULL.csv
             hardware/rev-d-g-v1.2/NC_PINS_v1.2_FULL.csv
