@@ -52,9 +52,12 @@ jobs:
           docker run --rm \
             -v "${{ github.workspace }}/route-out:/work" \
             ghcr.io/freerouting/freerouting:latest \
+            java -jar /app/freerouting-executable.jar \
             -de /work/revdg-v12.dsn \
             -do /work/revdg-v12.ses \
-            -l en
+            -l en \
+            --gui-enabled=false \
+            --api_server-enabled=false
           ls -lh route-out/
 
       - name: Import SES into KiCad
