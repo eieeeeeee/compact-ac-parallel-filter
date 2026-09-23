@@ -48,9 +48,7 @@ sem=importlib.util.module_from_spec(spec); spec.loader.exec_module(sem)
   (layer "F.Cu")
   (descr "DRAFT integration footprint; logical pads only; replace/verify against TI RAR0017B before fabrication")
   (attr smd)
-  (fp_rect (start -2.75 -2.25) (end 2.75 2.25) (stroke (width 0.15) (type default)) (fill none) (layer "F.SilkS"))
   (fp_rect (start -3.05 -2.55) (end 3.05 2.55) (stroke (width 0.05) (type default)) (fill none) (layer "F.CrtYd"))
-  (fp_line (start -2.75 -2.25) (end -2.05 -2.25) (stroke (width 0.35) (type default)) (layer "F.SilkS"))
   (pad "1" smd rect (at -2.35 -0.75) (size 0.70 0.25) (layers "F.Cu" "F.Paste" "F.Mask"))
   (pad "2" smd rect (at -2.35 -0.25) (size 0.70 0.25) (layers "F.Cu" "F.Paste" "F.Mask"))
   (pad "3" smd rect (at -2.35 0.25) (size 0.70 0.25) (layers "F.Cu" "F.Paste" "F.Mask"))
@@ -132,9 +130,9 @@ P={
 "J1":(6,73,0),"J2":(114,12,0),"J3":(27,8,90),
 "U1":(58,20,0),"U2":(18,21,0),"U3":(57,72,0),"U4":(72,72,0),"U5":(84,72,0),
 "U6":(108,40,0),"U7":(103,12,0),"U8":(83,12,0),"K1":(98,72,0),"Q1":(110,68,0),"Q2":(116,68,0),
-"FB101":(43,32,0),
-"R101":(39,8,0),"C101":(44,8,0),"R102":(72,8,0),
-"C110":(53,31,0),"C111":(57,31,0),"C112":(61,31,0),"C113":(65,31,0),"C114":(69,31,0),"C115":(46,32,0),"C116":(49,32,0),
+"FB101":(40,34,0),
+"R101":(42,8,0),"C101":(47,8,0),"R102":(72,8,0),
+"C110":(54,31,0),"C111":(58,31,0),"C112":(62,31,0),"C113":(66,31,0),"C114":(70,31,0),"C115":(45,34,0),"C116":(50,34,0),
 "R201":(8,34,0),"C201":(14,34,0),"R202":(20,34,0),"D201":(26,34,0),"D202":(30,34,0),"R203":(12,40,0),"C203":(18,40,0),
 "R210":(10,9,0),"R211":(16,9,0),"C210":(10,15,0),"C211":(16,15,0),"C212":(25,15,0),
 "C301":(27,76,0),"R301":(39,76,0),"R302":(49,76,0),"R303":(58,62,0),"C303":(64,62,0),"C304":(64,78,0),
@@ -144,10 +142,10 @@ P={
 "C601":(108,46,0),"C602":(114,46,0),"C603":(114,51,0),"C604":(102,51,0),"C605":(108,53,0),"C606":(114,56,0),
 "L601":(95,40,0),"C611":(95,48,0),"L602":(81,40,0),"C612":(81,48,0),"L603":(67,40,0),"C613":(67,48,0),
 "R701":(106,61,0),"R702":(111,61,0),"D701":(100,61,0),
-"L801":(96,12,0),"C801":(108,22,0),"C802":(114,22,0),"C803":(94,20,0),"C804":(89,20,0),"R805":(100,6,0),
-"C901":(78,7,0),"C902":(83,19,0),"C903":(88,19,0),
-"TP1":(15,73,0),"TP2":(7,41,0),"TP3":(60,81,0),"TP4":(88,78,0),"TP5":(102,40,0),
-"TP6":(60,40,0),"TP7":(91,12,0),"TP8":(75,20,0),"TP9":(28,21,0),"TP10":(6,43,0)
+"L801":(96,12,0),"C801":(108,22,0),"C802":(114,22,0),"C803":(93,20,0),"C804":(98,20,0),"R805":(100,6,0),
+"C901":(78,7,0),"C902":(83,19,0),"C903":(87,24,0),
+"TP1":(15,73,0),"TP2":(8,41,0),"TP3":(60,81,0),"TP4":(88,78,0),"TP5":(102,40,0),
+"TP6":(60,40,0),"TP7":(91,12,0),"TP8":(75,20,0),"TP9":(28,21,0),"TP10":(5,46,0)
 }
 
 footprints={}
@@ -202,6 +200,10 @@ text("U6 footprint = RAR0017B INTEGRATION DRAFT - DO NOT FABRICATE UNTIL VERIFIE
 text("J1/J2 Wurth body/courtyard compare pending official model",50,77.5,0.8)
 
 pcbnew.SaveBoard(str(BOARD_FILE),board)
+# KiCad CLI DRC reads serialized Default netclass clearance; set RC2 to 0.15 mm.
+txt=BOARD_FILE.read_text(encoding="utf-8")
+txt=txt.replace('(clearance 0.2)', '(clearance 0.15)', 1)
+BOARD_FILE.write_text(txt,encoding="utf-8")
 print("BOARD",BOARD_FILE)
 print("FOOTPRINTS",len(footprints))
 print("NETS",len(nets))
