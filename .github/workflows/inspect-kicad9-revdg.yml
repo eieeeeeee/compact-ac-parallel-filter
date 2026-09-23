@@ -1,4 +1,4 @@
-name: Inspect KiCad 9 board rule API
+name: Inspect KiCad 9 SES import API
 
 on:
   push:
@@ -16,6 +16,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: docker pull kicad/kicad:9.0
-      - name: Inspect board design settings
+      - name: Inspect SES import signature
         run: |
-          docker run --rm kicad/kicad:9.0 python3 -c 'import pcbnew; b=pcbnew.BOARD(); d=b.GetDesignSettings(); print([x for x in dir(d) if "clear" in x.lower() or "class" in x.lower() or "track" in x.lower()]); print("default",d.GetDefaultNetClass() if hasattr(d,"GetDefaultNetClass") else "none"); nc=d.GetDefaultNetClass() if hasattr(d,"GetDefaultNetClass") else None; print([x for x in dir(nc) if "clear" in x.lower() or "width" in x.lower()] if nc else "")'
+          docker run --rm kicad/kicad:9.0 python3 -c 'import pcbnew, inspect; print(pcbnew.ImportSpecctraSES); print(getattr(pcbnew.ImportSpecctraSES,"__doc__",None)); print(pcbnew.ExportSpecctraDSN); print(getattr(pcbnew.ExportSpecctraDSN,"__doc__",None))'
