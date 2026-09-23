@@ -83,7 +83,7 @@ C613|68nF 50V X7R 0603|Capacitor_SMD:C_0603_1608Metric
 R701|1k|Resistor_SMD:R_0603_1608Metric
 R702|100k|Resistor_SMD:R_0603_1608Metric
 D701|SS14|Diode_SMD:D_SMA
-L801|2.2uH >=1.3A|
+L801|VLS3012CX-2R2M-1 2.2uH|
 C801|10uF 25V X7R|Capacitor_SMD:C_0805_2012Metric
 C802|100nF 25V+|Capacitor_SMD:C_0603_1608Metric
 C803|22uF 10V X7R|Capacitor_SMD:C_1206_3216Metric
@@ -225,7 +225,7 @@ def write_outputs():
     (ROOT/"sym-lib-table").write_text('(sym_lib_table\n  (lib (name "RevDGSem")(type "KiCad")(uri "${KIPRJMOD}/RevDG_Semantic.kicad_sym")(options "")(descr "Rev.D-G v1.2 semantic device symbols"))\n)\n',encoding="utf-8")
 
     (ROOT/"fp-lib-table").write_text('(fp_lib_table\n  (lib (name "RevC")(type "KiCad")(uri "${KIPRJMOD}/RevC.pretty")(options "")(descr "Validated Rev.C shared footprints"))\n)\n',encoding="utf-8")
-    pending=[("J1","Wurth 691253510002","Exact manufacturer footprint freeze pending PCB stage"),("J2","Wurth 691253510002","Exact manufacturer footprint freeze pending PCB stage"),("U6","LMG2100R044","TI RAR land pattern pending exact vendor-footprint freeze"),("L801","VLF3012ST-2R2M1R4","TDK VLF3012 land pattern pending exact vendor-footprint freeze")]
+    pending=[("J1","Wurth 691253510002","Exact manufacturer footprint freeze pending PCB stage"),("J2","Wurth 691253510002","Exact manufacturer footprint freeze pending PCB stage"),("U6","LMG2100R044","TI RAR land pattern pending exact vendor-footprint freeze"),("L801","VLS3012CX-2R2M-1","TDK production replacement; PCB footprint freeze in progress")]
     with (ROOT/"FOOTPRINT_PENDING_v1.2.csv").open("w",encoding="utf-8-sig",newline="") as f:
         w=csv.writer(f); w.writerow(["Ref","Part","Status"]); w.writerows(pending)
     out=['(kicad_sch (version 20220904) (generator "revdg_semantic_v12")',f'  (uuid {uid("root")})','  (paper "A0")','  (lib_symbols']
