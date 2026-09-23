@@ -154,11 +154,8 @@ for net_node in children(network_out,"net"):
 if missing_nets:
     raise SystemExit("SES nets missing on KiCad board: "+", ".join(missing_nets))
 
-# use RC2 design rule envelope
-ds=board.GetDesignSettings()
-ds.m_MinClearance=mm(0.15)
-ds.m_TrackMinWidth=mm(0.15)
-
+# Board design rules are supplied by the paired .kicad_pro and validated by kicad-cli DRC.
+# Do not mutate the SWIG design-settings object here; its Python API shape varies across KiCad builds.
 pcbnew.SaveBoard(str(out_path),board)
 print("SES_MANUAL_IMPORT_OK")
 print("NETS_IMPORTED",net_count)
