@@ -16,18 +16,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: docker pull kicad/kicad:9.0
-      - name: Check DSN/SES and pcbnew routing APIs
+      - name: Check pcbnew DSN/SES APIs
         run: |
-          docker run --rm kicad/kicad:9.0 bash -lc '
-            echo "===== kicad-cli pcb help ====="
-            kicad-cli pcb --help || true
-            echo "===== kicad-cli pcb export help ====="
-            kicad-cli pcb export --help || true
-            echo "===== pcbnew DSN SES symbols ====="
-            python3 - <<PY
-            import pcbnew
-            for n in dir(pcbnew):
-                if any(k in n.lower() for k in ["specctra","dsn","ses","zone_filler","router"]):
-                    print(n)
-            PY
-          '
+          docker run --rm kicad/kicad:9.0 python3 -c 'import pcbnew; print("VERSION",pcbnew.GetBuildVersion()); [print(n) for n in dir(pcbnew) if any(k in n.lower() for k in ("specctra","dsn","ses"))]'
