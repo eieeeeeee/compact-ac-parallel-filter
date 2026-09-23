@@ -1,169 +1,138 @@
 # Compact AC Parallel Filter
 
-Compact plug-in experimental AC mains parallel network for **100 V AC, 50/60 Hz** environments.
+Open-hardware research platform for compact plug-in AC-noise filtering and adaptive parallel-shunt control.
 
 > [!WARNING]
-> ## PRE-PROTOTYPE / EXPERIMENTAL / NOT YET TESTED ON MAINS
+> **PRE-PROTOTYPE / EXPERIMENTAL / NOT MAINS-VALIDATED**
 >
-> This project is currently at the **design and simulation stage only**.
->
-> **No physical prototype has yet been manufactured or tested.**
->
-> The schematic, PCB layout, component selection, insulation distances, enclosure, thermal behavior, surge behavior, failure modes, and noise-reduction performance have **not yet been validated on actual mains power**.
->
-> This repository must **not** be interpreted as a finished, certified, production-ready, or safety-approved design.
->
-> The design connects directly to hazardous mains voltage. Construction, testing, modification, or use should only be undertaken by persons with appropriate electrical-safety knowledge, equipment, and applicable regulatory review.
+> No RC18 physical prototype has yet been manufactured or validated on hazardous mains power. The RC18 active-control work in this repository is currently a **low-voltage architecture and simulation study**. A safe mains coupling/isolation implementation is **not defined by the RC18 simulation model**. Do not interpret simulation, KiCad DRC/ERC, or CI results as safety approval, PSE compliance, EMC certification, or production readiness.
 
-## Status
+## What makes this repository different
 
-| Item | Current state |
-|---|---|
-| Version | `v0.1.1-preprototype` |
-| Development stage | Design / simulation / pre-prototype |
-| Target mains | 100 V AC, 50/60 Hz |
-| KiCad 10 review PCB | **DRC: 0 violations / 0 unconnected pads / 0 footprint errors** |
-| Physical prototype | **NOT BUILT** |
-| Mains test | **NOT PERFORMED** |
-| EMI/noise performance | **NOT VERIFIED** |
-| Thermal test | **NOT PERFORMED** |
-| Surge/fault test | **NOT PERFORMED** |
-| Safety certification | **NONE** |
+The project publishes not only schematics and PCB files, but also the assumptions, comparison baseline, dense frequency sweeps, corner cases, controller coefficients, numerical implementation checks, and machine-executable pass/fail gates used to make design decisions.
 
-## Latest review material
+A design change should be able to answer a simple question automatically:
 
-- [KiCad hardware files](hardware/kicad/README.md)
-- [KiCad 10 review PCB v0.5](hardware/kicad/review-v0.5/README.md) — 50 × 35 mm spacing/DNP study
-- [KiCad 10 official DRC report](measurements/drc/DRC_KiCad10_v0_5_20260920.rpt)
-- [Simulation v0.1](simulations/v0.1/simulation_assumptions_v0_1.md)
-- [Editable LTspice analysis files](simulations/ltspice-v0.1/README.md) — AC sweep and post-unplug discharge
-- [Simulation overview image](images/shunt_filter_simulation_overview_v0_1.png)
+> Does this change still meet the frozen electrical gates, or not?
 
-![Pre-prototype simulation overview](images/shunt_filter_simulation_overview_v0_1.png)
+## Current research branches
 
-The simulation figures are **predictions based on disclosed assumptions**, not measurements. In particular, high-frequency performance depends on capacitor ESR/ESL, PCB and wiring inductance, outlet/source impedance, connected equipment, and placement.
+| Track | Purpose | State |
+|---|---|---|
+| Passive plug-in network | Compact X2/MOV/fuse parallel network | Pre-prototype |
+| Rev.D / RC17 | Frozen comparison baseline for adaptive active-shunt studies | Simulation reference |
+| **RC18-B2.1** | Lower-cost EPC23104 + 3 MHz + asymmetric 3-stage reconstruction + digital biquad | **Simulation gate PASS candidate** |
 
-## Design target
+## RC18-B2.1 frozen candidate
 
-The initial concept is a compact direct plug-in parallel network using:
+The active-control candidate currently under validation is intentionally kept separate from the mains-safety question.
 
-- **C1:** 1 µF X2 safety capacitor — KEMET R53 series
-- **R1/R2:** 220 kΩ + 220 kΩ discharge network
-- **F1:** Littelfuse 37402500000, 250 mA time-lag fuse
-- **MOV1:** Littelfuse TMOV14RP140E thermally protected MOV
-- **LED:** low-current status indicator with reverse-voltage protection
-- **CMC:** not included in the initial parallel-only architecture
-- **Optional C2 / RC damping:** reserved for later measurement-based evaluation
+### Power/control architecture
 
-Two PCB studies are retained for review rather than silently replacing one another:
+- EPC23104 integrated GaN power stage
+- 3.0 MHz PWM
+- 2.0 MHz digital control update
+- 0.82 µH / 150 nF first reconstruction section
+- 0.47 µH / 100 nF second section
+- 0.68 µH / 82 nF third section
+- final float32/Q31 biquad validation at total modeled latency 2.041 µs
+- bounded timing jitter: ±25 ns
 
-| Revision | Board | Purpose |
-|---|---:|---|
-| KiCad 9 Rev.A | 32 × 28 mm | compact mechanical study |
-| KiCad 10 review v0.5 | 50 × 35 mm | wider spacing and DNP comparison footprints |
+### Frozen digital biquad
 
-Neither revision is a fabrication-approved or mains-validated design.
+```text
+H(z) = (b0 + b1 z^-1 + b2 z^-2) / (1 + a1 z^-1 + a2 z^-2)
 
-## Project goals
+b0 =  1.96005549
+b1 = -2.81840199
+b2 =  0.92560172
+a1 = -1.02969083
+a2 =  0.09694605
+Fs = 2.000 MHz
+```
 
-1. Design the smallest practical direct plug-in PCB without sacrificing electrical-safety margins.
-2. Publish the complete design process, not only favorable results.
-3. Measure the effect of the network under controlled conditions.
-4. Record temperature, discharge behavior, mains current, noise spectra, and failure-related observations.
-5. Revise the PCB based on measured data before calling the design validated.
+### Electrical simulation gates
+
+The CI gate evaluates:
+
+- 241 logarithmic points from 5–30 kHz
+- 241 logarithmic points from 30–100 kHz for watchdog testing
+- source |Z| = 0.2 / 0.5 / 1 / 2 / 5 / 10 / 20 Ω
+- source phase = −60° to +60° in 15° steps
+- B2.1 nominal, low-L/C and high-L/C corners
+- float32 sequential arithmetic
+- Q31 CMSIS-style DF1 arithmetic model
+- ±25 ns bounded timing jitter
+- active current ceiling = 120 mArms
+- command ceiling = 3.39411255 Vrms
+- watchdog worsening ≤ +0.5 dB
+- strict same-model RC17 equivalence requirement
+
+The current self-contained validation script passes both float32 and Q31 gates. The exact result is regenerated in CI rather than accepted from a hand-edited table.
+
+## Reproduce the RC18 gate locally
+
+```bash
+python -m pip install -r simulations/rc18-b2.1/requirements.txt
+python simulations/rc18-b2.1/validate_rc18.py
+```
+
+Generated results are written under `validation/rc18-b2.1/generated/` by default.
+
+See:
+
+- [`docs/RC18-B2.1-VALIDATION-SPEC.md`](docs/RC18-B2.1-VALIDATION-SPEC.md)
+- [`docs/REPRODUCIBILITY.md`](docs/REPRODUCIBILITY.md)
+- [`simulations/rc18-b2.1/README.md`](simulations/rc18-b2.1/README.md)
+- [`firmware/rc18-b2.1/biquad_coeffs.h`](firmware/rc18-b2.1/biquad_coeffs.h)
+- [`validation/rc18-b2.1/README.md`](validation/rc18-b2.1/README.md)
 
 ## Repository structure
 
 ```text
 .
-├─ README.md
+├─ .github/workflows/          # KiCad and electrical validation CI
+├─ hardware/                   # KiCad design work
+├─ firmware/                   # Controller implementation material
+├─ simulations/                # Reproducible models and gate scripts
+├─ validation/                 # Frozen reference and generated results
+├─ measurements/               # Physical measurements when prototypes exist
+├─ bom/                        # BOM and sourcing work
+├─ docs/                       # Design decisions, test plans, validation specs
 ├─ SAFETY.md
-├─ CHANGELOG.md
-├─ LICENSE
-├─ bom/
-│  └─ BOM.md
-├─ docs/
-│  ├─ DESIGN_NOTES.md
-│  └─ TEST_PLAN.md
-├─ hardware/
-│  └─ kicad/
-│     ├─ README.md
-│     └─ review-v0.5/
-├─ simulations/
-│  └─ v0.1/
-├─ measurements/
-│  ├─ README.md
-│  └─ drc/
-└─ images/
+├─ CONTRIBUTING.md
+├─ CITATION.cff
+└─ LICENSE
 ```
 
-## Development stages
+## Evidence policy
 
-### v0.1 — Pre-prototype
+Simulation results are predictions from disclosed models, not measurements. Null results, failed revisions, regressions, and negative measurements are part of the engineering record and should not be hidden.
 
-- schematic development
-- BOM definition
-- PCB layout
-- enclosure study
-- creepage/clearance review
-- design review before manufacturing
+Claims about real-world noise reduction will require controlled measurements using the same noise source, wiring, instrument settings, and comparison procedure. A future validated release should include raw data sufficient for independent re-analysis.
 
-### v0.2 — Prototype
+## Development path
 
-- first PCB manufactured
-- visual inspection
-- continuity/isolation checks
-- controlled first power-up
-- mechanical fit evaluation
+`pre-prototype → low-voltage bench validation → isolated/safe interface design → controlled prototype test → independent reproduction → validated release`
 
-### v0.3 — Measurement
+A `v1.0` tag is reserved for a release whose documentation matches physically tested hardware.
 
-- mains current
-- discharge time
-- thermal measurements
-- oscilloscope measurements
-- conducted-noise comparison
-- before/after data under repeatable loads
+## Safety and regulatory note
 
-### v0.4 — Revised prototype
+Open-source publication does not imply Japanese PSE compliance, IEC/UL compliance, EMC certification, safety approval, or fitness for connection to the public mains network. KiCad ERC/DRC only checks defined CAD rules; it cannot prove electrical safety or regulatory conformity.
 
-PCB and BOM revised from measured results.
+Read [`SAFETY.md`](SAFETY.md) before working with any mains-related hardware in this repository.
 
-### v1.0 — Validated open-hardware release
+## License
 
-Only after the defined validation work has been completed and the published documentation reflects the tested hardware revision.
-
-## Measurement policy
-
-Negative or null results are still results.
-
-The project intends to publish comparable measurements for:
-
-- baseline without the network
-- 1 µF network enabled
-- representative resistive/electronic loads
-- 50 Hz and 60 Hz where practical
-- temperature and long-duration behavior
-- noise spectra using identical measurement settings
-
-No performance claim should be made from the circuit diagram or simulation alone.
-
-## Regulatory note
-
-Open-source publication does **not** imply compliance with Japanese PSE requirements, IEC standards, or any other product-safety or EMC requirement. Regulatory compliance, certification, and marketability are separate questions from publication of design files.
-
-See [SAFETY.md](SAFETY.md) before working with this design.
+Hardware source material is published under **CERN-OHL-W-2.0** as described in [`LICENSE`](LICENSE).
 
 ---
 
 ## 日本語概要
 
-このリポジトリは、AC100 Vコンセントに直接挿す小型並列回路の**設計・計算・測定過程を公開する実験的オープンハードウェアプロジェクト**です。
+このリポジトリは、コンセント直挿し型の並列ノイズ対策回路と、適応型アクティブ・シャント制御を研究するオープンハードウェア・プロジェクトです。
 
-**現時点では実機未製作・商用電源未試験です。完成品、安全確認済み製品、認証済み製品ではありません。**
+RC18では「回路図を公開する」だけではなく、比較基準、241点の周波数掃引、部品ばらつき、0.2～20 Ωのライン条件、±60°位相、watchdog、float32/Q31量子化、演算誤差、タイミングジッタまで公開し、GitHub Actionsで自動的にPASS/FAILを判定できる形を目指しています。
 
-KiCad 10用レビュー基板v0.5では公式DRCを実行し、違反0・未接続0・フットプリントエラー0を確認しました。ただし、DRC合格は回路の安全性、部品定格、絶縁、筐体、熱、サージ耐性、ノイズ低減効果を保証するものではありません。
-
-試作前のシミュレーションでは、容量別インピーダンス、電源側インピーダンス別の減衰予測、1 µF＋440 kΩの放電曲線、AC100 V・60 Hz時の容量電流を公開しています。使用した仮定と計算用データも収録し、試作後に実測値と比較できる形にしています。
-
-初号機を製作・測定するまでは `v0.1.1-preprototype` として扱い、実測結果は成功・不成功を問わず公開する方針です。
+RC18-B2.1は現時点で**低電圧アーキテクチャのシミュレーション候補**です。商用電源へ安全に接続するための結合・絶縁方式は、このシミュレーションだけでは定義されていません。実機・商用電源試験・安全規格確認が終わるまで、完成品や安全確認済み製品として扱いません。
