@@ -95,9 +95,19 @@ def pos(x,y):
     # Specctra y axis is inverted relative to KiCad board coordinates.
     return pcbnew.VECTOR2I(int(mm(float(x)*scale_mm)), int(mm(-float(y)*scale_mm)))
 
-# clear any existing tracks/vias (RC2 has none, but make importer idempotent)
+# Replace only autorouter-owned copper.  RC3 deliberately contains locked
+# topology-critical GaN/LC/Kelvin/HRTIM tracks that must survive SES import.
+locked_kept=0
+removed=0
 for t in list(board.Tracks()):
-    board.Remove(t)
+    is_locked = bool(t.IsLocked()) if hasattr(t, "IsLocked") else False
+    if is_locked:
+        locked_kept += 1
+    else:
+        board.Remove(t)
+        removed += 1
+print("LOCKED_TRACKS_KEPT", locked_kept)
+print("UNLOCKED_TRACKS_REMOVED", removed)
 
 network_out=child(routes,"network_out")
 if network_out is None: raise SystemExit("SES has no network_out")
