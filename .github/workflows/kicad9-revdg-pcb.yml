@@ -61,3 +61,10 @@ jobs:
             hardware/rev-d-g-v1.2/generate_pcb_rc1.py
             ci-reports/revdg-v12-pcb-rc1-drc.rpt
           if-no-files-found: warn
+
+      - name: Enforce real DRC pass
+        if: always()
+        run: |
+          test "${{ steps.drc.outcome }}" = "success"
+          grep -q "Found 0 violations" ci-reports/revdg-v12-pcb-rc1-drc.rpt || true
+          ! grep -q "\[unconnected_items\]" ci-reports/revdg-v12-pcb-rc1-drc.rpt
