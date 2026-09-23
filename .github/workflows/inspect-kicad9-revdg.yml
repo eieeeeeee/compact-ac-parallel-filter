@@ -1,4 +1,4 @@
-name: Inspect KiCad 9 exact remaining footprints
+name: Inspect KiCad 9 pcbnew API for Rev.D-G
 
 on:
   push:
@@ -16,11 +16,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: docker pull kicad/kicad:9.0
-      - name: Search exact remaining footprints
+      - name: Check pcbnew Python API
         run: |
           docker run --rm kicad/kicad:9.0 bash -lc '
-            echo "===== WUERTH 691253510002 ====="
-            find /usr/share/kicad/footprints -type f | grep -Ei "691253510002|691253|Wuerth.*2.*5.08|TerminalBlock_Wuerth" | head -80 || true
-            echo "===== C 7.2 x 5.0 P5 ====="
-            find /usr/share/kicad/footprints/Capacitor_THT.pretty -type f | grep -Ei "7.2.*5.0.*P5|P5.00.*7.2|L7.2.*W5" | head -50 || true
+            python3 - <<PY
+            import sys
+            print(sys.version)
+            try:
+                import pcbnew
+                print("PCBNEW_IMPORT_OK")
+                print("KICAD_VERSION", pcbnew.GetBuildVersion())
+                print("HAS_FOOTPRINT_LOAD", hasattr(pcbnew, "FootprintLoad"))
+                print("HAS_BOARD", hasattr(pcbnew, "BOARD"))
+            except Exception as e:
+                print("PCBNEW_IMPORT_FAIL", repr(e))
+                raise
+            PY
           '
