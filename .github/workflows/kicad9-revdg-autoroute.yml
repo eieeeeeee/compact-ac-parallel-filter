@@ -32,6 +32,12 @@ jobs:
           docker pull kicad/kicad:9.0
           docker pull ghcr.io/freerouting/freerouting:latest
 
+      - name: Python syntax check
+        run: |
+          python3 -m py_compile hardware/rev-d-g-v1.2/generate_pcb_rc4.py
+          python3 -m py_compile hardware/rev-d-g-v1.2/tune_dsn_rules_rc4.py
+          python3 -m py_compile hardware/rev-d-g-v1.2/import_freerouting_ses.py
+
       - name: Generate unrouted PCB
         run: |
           docker run --rm --user root \
