@@ -317,6 +317,21 @@ _vos_b=v(104.60,14.00)
 locked_track("+5V",_u7_vos,_vos_a,0.20)
 locked_track("+5V",_vos_a,_vos_b,0.20)
 
+# U4 pad 2 (VTH_HI) is a fine-pitch VSSOP pad that Freerouting can
+# occasionally leave isolated. Give it a short deterministic outward escape
+# and a fixed via; the autorouter completes the remainder of the same VTH_HI net.
+_u4_vth=pad("U4","2").GetPosition()
+_vth_escape=v(44.80,53.675)
+locked_track("VTH_HI",_u4_vth,_vth_escape,0.18)
+_vth_via=pcbnew.PCB_VIA(board)
+_vth_via.SetNet(nets["VTH_HI"])
+_vth_via.SetPosition(_vth_escape)
+_vth_via.SetWidth(mm(0.60))
+_vth_via.SetDrill(mm(0.30))
+_vth_via.SetLayerPair(pcbnew.F_Cu,pcbnew.B_Cu)
+_vth_via.SetLocked(True)
+board.Add(_vth_via)
+
 # U1 pin47 (VSS) was the remaining inaccessible MCU ground pad in RC14.
 # Give it a short outward escape and let Freerouting join it to the GND network.
 _u1_g47=pad("U1","47").GetPosition()
