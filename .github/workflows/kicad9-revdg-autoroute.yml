@@ -4,7 +4,7 @@ on:
   push:
     branches: [rev-d-g-v1.2]
     paths:
-      - 'hardware/rev-d-g-v1.2/generate_pcb_rc1.py'
+      - 'hardware/rev-d-g-v1.2/generate_pcb_rc2.py'
       - 'hardware/rev-d-g-v1.2/generate_semantic_schematic.py'
       - 'hardware/rev-d-g-v1.2/NETLIST_v1.2.csv'
       - '.github/workflows/kicad9-revdg-autoroute.yml'
@@ -36,7 +36,7 @@ jobs:
             -v "${{ github.workspace }}:/work" \
             -w /work/hardware/rev-d-g-v1.2 \
             kicad/kicad:9.0 \
-            python3 generate_pcb_rc1.py
+            python3 generate_pcb_rc2.py
 
       - name: Export Specctra DSN
         run: |
@@ -44,7 +44,7 @@ jobs:
             -v "${{ github.workspace }}:/work" \
             -w /work/hardware/rev-d-g-v1.2 \
             kicad/kicad:9.0 \
-            python3 -c 'import pcbnew; b=pcbnew.LoadBoard("RevD_G_v1_2_PCB_RC1.kicad_pcb"); ok=pcbnew.ExportSpecctraDSN(b,"/work/route-out/revdg-v12.dsn"); print("DSN_EXPORT",ok)'
+            python3 -c 'import pcbnew; b=pcbnew.LoadBoard("RevD_G_v1_2_PCB_RC2.kicad_pcb"); b.GetDesignSettings().m_MinClearance=pcbnew.FromMM(0.15); b.GetDesignSettings().m_TrackMinWidth=pcbnew.FromMM(0.15); ok=pcbnew.ExportSpecctraDSN(b,"/work/route-out/revdg-v12.dsn"); print("DSN_EXPORT",ok); raise SystemExit(0 if ok else 2)'
           ls -lh route-out/revdg-v12.dsn
 
       - name: Autoroute with Freerouting
@@ -56,20 +56,21 @@ jobs:
             -de /work/revdg-v12.dsn \
             -do /work/revdg-v12.ses \
             -l en \
-            -mp 1 \
-            -mt 0 \
+            -mp 20 \
+            -mt 4 \
+            -oit 0.5 \
             --gui-enabled=false \
             --api_server-enabled=false
           ls -lh route-out/
 
       - name: Import SES into KiCad
         run: |
-          cp hardware/rev-d-g-v1.2/RevD_G_v1_2_PCB_RC1.kicad_pcb route-out/RevD_G_v1_2_PCB_ROUTED.kicad_pcb
           docker run --rm --user root \
             -v "${{ github.workspace }}:/work" \
-            -w /work/route-out \
+            -w /work/hardware/rev-d-g-v1.2 \
             kicad/kicad:9.0 \
-            python3 -c 'import pcbnew; b=pcbnew.LoadBoard("RevD_G_v1_2_PCB_ROUTED.kicad_pcb"); ok=pcbnew.ImportSpecctraSES(b,"revdg-v12.ses"); print("SES_IMPORT",ok); pcbnew.SaveBoard("RevD_G_v1_2_PCB_ROUTED.kicad_pcb",b)'
+            python3 -c 'import pcbnew; b=pcbnew.LoadBoard("RevD_G_v1_2_PCB_RC2.kicad_pcb"); ok=pcbnew.ImportSpecctraSES(b,"/work/route-out/revdg-v12.ses"); print("SES_IMPORT",ok); raise SystemExit(3) if not ok else None; pcbnew.SaveBoard("/work/route-out/RevD_G_v1_2_PCB_ROUTED.kicad_pcb",b)'
+          cp hardware/rev-d-g-v1.2/RevD_G_v1_2_PCB_RC2.kicad_pro route-out/RevD_G_v1_2_PCB_ROUTED.kicad_pro
 
       - name: Official KiCad 9 DRC
         id: drc
