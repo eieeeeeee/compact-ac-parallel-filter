@@ -53,7 +53,7 @@ def block(name,nets,width):
       )
       (rule
         (width {width})
-        (clearance 150)
+        (clearance 200)
       )
     )'''
 
