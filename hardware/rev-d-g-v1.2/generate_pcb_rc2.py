@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import csv, os, sys, importlib.util
+import csv, os, sys, importlib.util, json
 from pathlib import Path
 import pcbnew
 
@@ -204,6 +204,28 @@ pcbnew.SaveBoard(str(BOARD_FILE),board)
 txt=BOARD_FILE.read_text(encoding="utf-8")
 txt=txt.replace('(clearance 0.2)', '(clearance 0.15)', 1)
 BOARD_FILE.write_text(txt,encoding="utf-8")
+
+# KiCad 9 stores the Default netclass in the project file, not in .kicad_pcb.
+# Create an RC2 project alongside the board so kicad-cli DRC uses the intended rules.
+PRO_FILE=ROOT/"RevD_G_v1_2_PCB_RC2.kicad_pro"
+template=ROOT.parent/"rev-c-active-shunt"/"RevC_Active_Controller_v0.3.1.kicad_pro"
+with template.open(encoding="utf-8") as f:
+    pro=json.load(f)
+pro["boards"]=[BOARD_FILE.name]
+pro["meta"]["filename"]=PRO_FILE.name
+default=pro["net_settings"]["classes"][0]
+default["name"]="Default"
+default["clearance"]=0.15
+default["track_width"]=0.25
+default["via_diameter"]=0.60
+default["via_drill"]=0.30
+pro["net_settings"]["classes"]=[default]
+pro["net_settings"]["netclass_patterns"]=[]
+pro["board"]["design_settings"]["rule_severities"]["silk_overlap"]="ignore"
+pro["board"]["design_settings"]["rule_severities"]["silk_over_copper"]="ignore"
+pro["board"]["design_settings"]["rule_severities"]["courtyards_overlap"]="error"
+with PRO_FILE.open("w",encoding="utf-8") as f:
+    json.dump(pro,f,indent=2)
 print("BOARD",BOARD_FILE)
 print("FOOTPRINTS",len(footprints))
 print("NETS",len(nets))
