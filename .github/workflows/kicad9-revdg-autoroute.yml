@@ -4,7 +4,7 @@ on:
   push:
     branches: [rev-d-g-v1.2]
     paths:
-      - 'hardware/rev-d-g-v1.2/generate_pcb_rc14.py'
+      - 'hardware/rev-d-g-v1.2/generate_pcb_rc15.py'
       - 'hardware/rev-d-g-v1.2/generate_semantic_schematic.py'
       - 'hardware/rev-d-g-v1.2/NETLIST_v1.2.csv'
       - 'hardware/rev-d-g-v1.2/import_freerouting_ses.py'
@@ -34,7 +34,7 @@ jobs:
 
       - name: Python syntax check
         run: |
-          python3 -m py_compile hardware/rev-d-g-v1.2/generate_pcb_rc14.py
+          python3 -m py_compile hardware/rev-d-g-v1.2/generate_pcb_rc15.py
           python3 -m py_compile hardware/rev-d-g-v1.2/tune_dsn_rules_rc4.py
           python3 -m py_compile hardware/rev-d-g-v1.2/import_freerouting_ses.py
 
@@ -44,7 +44,7 @@ jobs:
             -v "${{ github.workspace }}:/work" \
             -w /work/hardware/rev-d-g-v1.2 \
             kicad/kicad:9.0 \
-            python3 generate_pcb_rc14.py
+            python3 generate_pcb_rc15.py
 
       - name: Export Specctra DSN
         run: |
@@ -52,15 +52,15 @@ jobs:
             -v "${{ github.workspace }}:/work" \
             -w /work/hardware/rev-d-g-v1.2 \
             kicad/kicad:9.0 \
-            python3 -c 'import pcbnew; b=pcbnew.LoadBoard("RevD_G_v1_2_PCB_RC14.kicad_pcb"); b.GetDesignSettings().m_MinClearance=pcbnew.FromMM(0.15); b.GetDesignSettings().m_TrackMinWidth=pcbnew.FromMM(0.15); ok=pcbnew.ExportSpecctraDSN(b,"/work/route-out/revdg-v12-rc14.dsn"); print("DSN_EXPORT",ok); raise SystemExit(0 if ok else 2)'
+            python3 -c 'import pcbnew; b=pcbnew.LoadBoard("RevD_G_v1_2_PCB_RC15.kicad_pcb"); b.GetDesignSettings().m_MinClearance=pcbnew.FromMM(0.15); b.GetDesignSettings().m_TrackMinWidth=pcbnew.FromMM(0.15); ok=pcbnew.ExportSpecctraDSN(b,"/work/route-out/revdg-v12-rc15.dsn"); print("DSN_EXPORT",ok); raise SystemExit(0 if ok else 2)'
           sudo chown -R "$(id -u):$(id -g)" route-out
           chmod -R u+rwX route-out
-          ls -lh route-out/revdg-v12-rc14.dsn
+          ls -lh route-out/revdg-v12-rc15.dsn
 
       - name: Apply Rev.D-G critical-net routing rules
         run: |
-          python3 hardware/rev-d-g-v1.2/tune_dsn_rules_rc4.py route-out/revdg-v12-rc14.dsn
-          grep -n "(class revd_" route-out/revdg-v12-rc14.dsn
+          python3 hardware/rev-d-g-v1.2/tune_dsn_rules_rc4.py route-out/revdg-v12-rc15.dsn
+          grep -n "(class revd_" route-out/revdg-v12-rc15.dsn
 
       - name: Autoroute with Freerouting
         run: |
@@ -68,8 +68,8 @@ jobs:
             -v "${{ github.workspace }}/route-out:/work" \
             ghcr.io/freerouting/freerouting:latest \
             java -jar /app/freerouting-executable.jar \
-            -de /work/revdg-v12-rc14.dsn \
-            -do /work/revdg-v12-rc14.ses \
+            -de /work/revdg-v12-rc15.dsn \
+            -do /work/revdg-v12-rc15.ses \
             -l en \
             -mp 20 \
             -mt 4 \
@@ -85,18 +85,18 @@ jobs:
             -w /work/hardware/rev-d-g-v1.2 \
             kicad/kicad:9.0 \
             python3 import_freerouting_ses.py \
-              RevD_G_v1_2_PCB_RC14.kicad_pcb \
-              /work/route-out/revdg-v12-rc14.ses \
-              /work/route-out/RevD_G_v1_2_PCB_RC14_ROUTED.kicad_pcb
+              RevD_G_v1_2_PCB_RC15.kicad_pcb \
+              /work/route-out/revdg-v12-rc15.ses \
+              /work/route-out/RevD_G_v1_2_PCB_RC15_ROUTED.kicad_pcb
           sudo chown -R "$(id -u):$(id -g)" route-out
           chmod -R u+rwX route-out
-          cp hardware/rev-d-g-v1.2/RevD_G_v1_2_PCB_RC14.kicad_pro route-out/RevD_G_v1_2_PCB_RC14_ROUTED.kicad_pro
+          cp hardware/rev-d-g-v1.2/RevD_G_v1_2_PCB_RC15.kicad_pro route-out/RevD_G_v1_2_PCB_RC15_ROUTED.kicad_pro
           python3 - <<'PY'
           import json
-          p="route-out/RevD_G_v1_2_PCB_RC14_ROUTED.kicad_pro"
+          p="route-out/RevD_G_v1_2_PCB_RC15_ROUTED.kicad_pro"
           with open(p,encoding="utf-8") as f: d=json.load(f)
-          d["boards"]=["RevD_G_v1_2_PCB_RC14_ROUTED.kicad_pcb"]
-          d["meta"]["filename"]="RevD_G_v1_2_PCB_RC14_ROUTED.kicad_pro"
+          d["boards"]=["RevD_G_v1_2_PCB_RC15_ROUTED.kicad_pcb"]
+          d["meta"]["filename"]="RevD_G_v1_2_PCB_RC15_ROUTED.kicad_pro"
           with open(p,"w",encoding="utf-8") as f: json.dump(d,f,indent=2)
           PY
 
@@ -113,14 +113,14 @@ jobs:
               --all-track-errors \
               --severity-all \
               --exit-code-violations \
-              --output /work/ci-reports/revdg-v12-rc14-autoroute-drc.rpt \
-              RevD_G_v1_2_PCB_RC14_ROUTED.kicad_pcb
+              --output /work/ci-reports/revdg-v12-rc15-autoroute-drc.rpt \
+              RevD_G_v1_2_PCB_RC15_ROUTED.kicad_pcb
 
       - name: Print DRC
         if: always()
         run: |
           echo "===== AUTOROUTE DRC ====="
-          cat ci-reports/revdg-v12-rc14-autoroute-drc.rpt || true
+          cat ci-reports/revdg-v12-rc15-autoroute-drc.rpt || true
           echo "DRC outcome: ${{ steps.drc.outcome }}"
 
       - name: Audit critical routed nets
@@ -131,31 +131,31 @@ jobs:
             -w /work/hardware/rev-d-g-v1.2 \
             kicad/kicad:9.0 \
             python3 audit_routed_pcb.py \
-              /work/route-out/RevD_G_v1_2_PCB_RC14_ROUTED.kicad_pcb \
-              /work/route-out/route_audit_rc14.csv
+              /work/route-out/RevD_G_v1_2_PCB_RC15_ROUTED.kicad_pcb \
+              /work/route-out/route_audit_rc15.csv
           sudo chown -R "$(id -u):$(id -g)" route-out
-          cat route-out/route_audit_rc14.csv || true
+          cat route-out/route_audit_rc15.csv || true
 
 
       - name: Upload autoroute result
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: revd-g-v12-rc14-autorouted
+          name: revd-g-v12-rc15-autorouted
           path: |
             route-out/
             hardware/rev-d-g-v1.2/import_freerouting_ses.py
             hardware/rev-d-g-v1.2/tune_dsn_rules_rc4.py
-            hardware/rev-d-g-v1.2/generate_pcb_rc14.py
+            hardware/rev-d-g-v1.2/generate_pcb_rc15.py
             hardware/rev-d-g-v1.2/audit_routed_pcb.py
-            ci-reports/revdg-v12-rc14-autoroute-drc.rpt
+            ci-reports/revdg-v12-rc15-autoroute-drc.rpt
           if-no-files-found: warn
 
       - name: Enforce routing completeness
         if: always()
         run: |
-          test -f route-out/RevD_G_v1_2_PCB_RC14_ROUTED.kicad_pcb
-          test -f ci-reports/revdg-v12-rc14-autoroute-drc.rpt
-          grep -q "\*\* Found 0 DRC violations \*\*" ci-reports/revdg-v12-rc14-autoroute-drc.rpt
-          grep -q "\*\* Found 0 unconnected pads \*\*" ci-reports/revdg-v12-rc14-autoroute-drc.rpt
+          test -f route-out/RevD_G_v1_2_PCB_RC15_ROUTED.kicad_pcb
+          test -f ci-reports/revdg-v12-rc15-autoroute-drc.rpt
+          grep -q "\*\* Found 0 DRC violations \*\*" ci-reports/revdg-v12-rc15-autoroute-drc.rpt
+          grep -q "\*\* Found 0 unconnected pads \*\*" ci-reports/revdg-v12-rc15-autoroute-drc.rpt
           test "${{ steps.drc.outcome }}" = "success"
