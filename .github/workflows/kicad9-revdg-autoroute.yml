@@ -74,6 +74,8 @@ jobs:
               RevD_G_v1_2_PCB_RC2.kicad_pcb \
               /work/route-out/revdg-v12.ses \
               /work/route-out/RevD_G_v1_2_PCB_ROUTED.kicad_pcb
+          sudo chown -R "$(id -u):$(id -g)" route-out
+          chmod -R u+rwX route-out
           cp hardware/rev-d-g-v1.2/RevD_G_v1_2_PCB_RC2.kicad_pro route-out/RevD_G_v1_2_PCB_ROUTED.kicad_pro
           python3 - <<'PY'
           import json
