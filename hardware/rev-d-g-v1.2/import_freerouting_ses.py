@@ -74,9 +74,10 @@ resolution=float(res[2])
 if unit!="um":
     raise SystemExit(f"unsupported SES unit {unit}")
 
-# Freerouting writes route coordinates in resolution units where:
-# mm = integer * resolution(um) / 1000.
-scale_mm=resolution/1000.0
+# Specctra (resolution um N) means N integer database units per micrometre.
+# Therefore 1 coordinate unit = 1/N um = 1/(N*1000) mm.
+# Example: 1085000 at resolution 10 -> 108.5 mm.
+scale_mm=1.0/(resolution*1000.0)
 
 board=pcbnew.LoadBoard(str(board_path))
 if board is None: raise SystemExit("cannot load board")
@@ -92,7 +93,7 @@ layer_map={
 def mm(v): return pcbnew.FromMM(float(v))
 def pos(x,y):
     # Specctra y axis is inverted relative to KiCad board coordinates.
-    return pcbnew.VECTOR2I(mm(float(x)*scale_mm), mm(-float(y)*scale_mm))
+    return pcbnew.VECTOR2I(int(mm(float(x)*scale_mm)), int(mm(-float(y)*scale_mm)))
 
 # clear any existing tracks/vias (RC2 has none, but make importer idempotent)
 for t in list(board.Tracks()):
