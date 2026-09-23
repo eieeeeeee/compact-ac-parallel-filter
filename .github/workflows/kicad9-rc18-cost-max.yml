@@ -4,12 +4,14 @@ on:
   push:
     branches: [rc18-cost-max]
     paths:
-      - 'hardware/rev-d-g-v1.2/generate_pcb_rc18_cost_max.py'\n      - 'hardware/rev-d-g-v1.2/verify_rc18_stage1_equivalence.py'\n      - 'simulations/rc18-cost-max/simulate_stage1.py'
+      - 'hardware/rev-d-g-v1.2/generate_pcb_rc18_cost_max.py'
+      - 'hardware/rev-d-g-v1.2/verify_rc18_stage1_equivalence.py'
+      - 'simulations/rc18-cost-max/simulate_stage1.py'
       - 'hardware/rev-d-g-v1.2/generate_semantic_schematic.py'
       - 'hardware/rev-d-g-v1.2/NETLIST_v1.2.csv'
       - 'hardware/rev-d-g-v1.2/import_freerouting_ses.py'
       - 'hardware/rev-d-g-v1.2/tune_dsn_rules_rc4.py'
-      - '.github/workflows/kicad9-revdg-autoroute.yml'
+      - '.github/workflows/kicad9-rc18-cost-max.yml'
   workflow_dispatch:
 
 permissions:
