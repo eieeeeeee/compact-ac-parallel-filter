@@ -7,6 +7,7 @@ on:
       - 'hardware/rev-d-g-v1.2/generate_pcb_rc18_cost_max.py'
       - 'hardware/rev-d-g-v1.2/verify_rc18_stage1_equivalence.py'
       - 'simulations/rc18-cost-max/simulate_stage1.py'
+      - 'simulations/rc18-cost-max/simulate_stage2_power_stage.py'
       - 'hardware/rev-d-g-v1.2/generate_semantic_schematic.py'
       - 'hardware/rev-d-g-v1.2/NETLIST_v1.2.csv'
       - 'hardware/rev-d-g-v1.2/import_freerouting_ses.py'
@@ -39,6 +40,7 @@ jobs:
           python3 -m py_compile hardware/rev-d-g-v1.2/generate_pcb_rc18_cost_max.py
           python3 -m py_compile hardware/rev-d-g-v1.2/verify_rc18_stage1_equivalence.py
           python3 -m py_compile simulations/rc18-cost-max/simulate_stage1.py
+          python3 -m py_compile simulations/rc18-cost-max/simulate_stage2_power_stage.py
           python3 -m py_compile hardware/rev-d-g-v1.2/tune_dsn_rules_rc4.py
           python3 -m py_compile hardware/rev-d-g-v1.2/import_freerouting_ses.py
 
@@ -46,6 +48,11 @@ jobs:
         run: |
           python3 simulations/rc18-cost-max/simulate_stage1.py
           cat simulations/rc18-cost-max/out/stage1_summary.json
+
+      - name: Run Stage 2 power-stage qualification
+        run: |
+          python3 simulations/rc18-cost-max/simulate_stage2_power_stage.py
+          cat simulations/rc18-cost-max/out/stage2_power_stage.json
 
       - name: Generate RC17 reference and RC18 candidate
         run: |
@@ -169,6 +176,7 @@ jobs:
             hardware/rev-d-g-v1.2/verify_rc18_stage1_equivalence.py
             hardware/rev-d-g-v1.2/RC18_COST_MAX.md
             simulations/rc18-cost-max/out/
+            simulations/rc18-cost-max/STAGE2_POWER_STAGE.md
             hardware/rev-d-g-v1.2/audit_routed_pcb.py
             ci-reports/revdg-rc18-cost-max-s1-autoroute-drc.rpt
           if-no-files-found: warn
