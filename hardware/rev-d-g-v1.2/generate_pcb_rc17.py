@@ -271,6 +271,10 @@ locked_track("GAN_SW",esc5,l1,0.70)
 # the local tie to the main GAN_SW network around, not through, the package.
 locked_direct("GAN_SW",("U6","11"),("C601","2"),0.18)
 locked_direct("GAN_HB",("C601","1"),("U6","10"),0.18)
+# RAR0017B AGND (15) is internally tied to the low-side source/PGND.
+# Give the tiny AGND land a deterministic short copper tie to the exposed PGND pad
+# instead of relying on the autorouter to enter the package pin field.
+locked_direct("GND",("U6","15"),("U6","17"),0.20)
 
 # Three-section reconstruction ladder.
 locked_direct("GAN_F1",("L601","2"),("L602","1"),0.60)
