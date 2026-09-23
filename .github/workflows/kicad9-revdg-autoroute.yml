@@ -1,0 +1,108 @@
+name: Rev.D-G v1.2 Freerouting Autoroute
+
+on:
+  push:
+    branches: [rev-d-g-v1.2]
+    paths:
+      - 'hardware/rev-d-g-v1.2/generate_pcb_rc1.py'
+      - 'hardware/rev-d-g-v1.2/generate_semantic_schematic.py'
+      - 'hardware/rev-d-g-v1.2/NETLIST_v1.2.csv'
+      - '.github/workflows/kicad9-revdg-autoroute.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  autoroute:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare
+        run: |
+          mkdir -p ci-reports route-out
+          chmod 777 ci-reports route-out hardware/rev-d-g-v1.2
+
+      - name: Pull KiCad 9 and Freerouting
+        run: |
+          docker pull kicad/kicad:9.0
+          docker pull ghcr.io/freerouting/freerouting:latest
+
+      - name: Generate unrouted PCB
+        run: |
+          docker run --rm --user root \
+            -v "${{ github.workspace }}:/work" \
+            -w /work/hardware/rev-d-g-v1.2 \
+            kicad/kicad:9.0 \
+            python3 generate_pcb_rc1.py
+
+      - name: Export Specctra DSN
+        run: |
+          docker run --rm --user root \
+            -v "${{ github.workspace }}:/work" \
+            -w /work/hardware/rev-d-g-v1.2 \
+            kicad/kicad:9.0 \
+            python3 -c 'import pcbnew; b=pcbnew.LoadBoard("RevD_G_v1_2_PCB_RC1.kicad_pcb"); ok=pcbnew.ExportSpecctraDSN(b,"/work/route-out/revdg-v12.dsn"); print("DSN_EXPORT",ok)'
+          ls -lh route-out/revdg-v12.dsn
+
+      - name: Autoroute with Freerouting
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}/route-out:/work" \
+            ghcr.io/freerouting/freerouting:latest \
+            -de /work/revdg-v12.dsn \
+            -do /work/revdg-v12.ses \
+            -l en
+          ls -lh route-out/
+
+      - name: Import SES into KiCad
+        run: |
+          cp hardware/rev-d-g-v1.2/RevD_G_v1_2_PCB_RC1.kicad_pcb route-out/RevD_G_v1_2_PCB_ROUTED.kicad_pcb
+          docker run --rm --user root \
+            -v "${{ github.workspace }}:/work" \
+            -w /work/route-out \
+            kicad/kicad:9.0 \
+            python3 -c 'import pcbnew; b=pcbnew.LoadBoard("RevD_G_v1_2_PCB_ROUTED.kicad_pcb"); ok=pcbnew.ImportSpecctraSES(b,"revdg-v12.ses"); print("SES_IMPORT",ok); pcbnew.SaveBoard("RevD_G_v1_2_PCB_ROUTED.kicad_pcb",b)'
+
+      - name: Official KiCad 9 DRC
+        id: drc
+        continue-on-error: true
+        run: |
+          chmod 777 ci-reports
+          docker run --rm \
+            -v "${{ github.workspace }}:/work" \
+            -w /work/route-out \
+            kicad/kicad:9.0 \
+            kicad-cli pcb drc \
+              --all-track-errors \
+              --severity-all \
+              --exit-code-violations \
+              --output /work/ci-reports/revdg-v12-autoroute-drc.rpt \
+              RevD_G_v1_2_PCB_ROUTED.kicad_pcb
+
+      - name: Print DRC
+        if: always()
+        run: |
+          echo "===== AUTOROUTE DRC ====="
+          cat ci-reports/revdg-v12-autoroute-drc.rpt || true
+          echo "DRC outcome: ${{ steps.drc.outcome }}"
+
+      - name: Upload autoroute result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: revd-g-v12-autorouted
+          path: |
+            route-out/
+            ci-reports/revdg-v12-autoroute-drc.rpt
+          if-no-files-found: warn
+
+      - name: Enforce routing completeness
+        if: always()
+        run: |
+          test -f route-out/RevD_G_v1_2_PCB_ROUTED.kicad_pcb
+          test -f ci-reports/revdg-v12-autoroute-drc.rpt
+          ! grep -q "\[unconnected_items\]" ci-reports/revdg-v12-autoroute-drc.rpt
+          test "${{ steps.drc.outcome }}" = "success"
