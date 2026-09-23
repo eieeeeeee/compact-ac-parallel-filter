@@ -18,18 +18,4 @@ jobs:
       - run: docker pull kicad/kicad:9.0
       - name: Check pcbnew Python API
         run: |
-          docker run --rm kicad/kicad:9.0 bash -lc '
-            python3 - <<PY
-            import sys
-            print(sys.version)
-            try:
-                import pcbnew
-                print("PCBNEW_IMPORT_OK")
-                print("KICAD_VERSION", pcbnew.GetBuildVersion())
-                print("HAS_FOOTPRINT_LOAD", hasattr(pcbnew, "FootprintLoad"))
-                print("HAS_BOARD", hasattr(pcbnew, "BOARD"))
-            except Exception as e:
-                print("PCBNEW_IMPORT_FAIL", repr(e))
-                raise
-            PY
-          '
+          docker run --rm kicad/kicad:9.0 python3 -c 'import pcbnew; print("PCBNEW_IMPORT_OK"); print("KICAD_VERSION", pcbnew.GetBuildVersion()); print("HAS_FOOTPRINT_LOAD", hasattr(pcbnew,"FootprintLoad")); print("HAS_BOARD", hasattr(pcbnew,"BOARD"))'
