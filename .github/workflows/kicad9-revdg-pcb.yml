@@ -25,7 +25,7 @@ jobs:
       - run: docker pull kicad/kicad:9.0
       - name: Generate PCB RC1 with KiCad 9 pcbnew API
         run: |
-          docker run --rm \
+          docker run --rm --user root \
             -v "${{ github.workspace }}:/work" \
             -w /work/hardware/rev-d-g-v1.2 \
             kicad/kicad:9.0 \
