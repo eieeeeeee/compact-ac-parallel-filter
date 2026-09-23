@@ -56,6 +56,9 @@ jobs:
             -de /work/revdg-v12.dsn \
             -do /work/revdg-v12.ses \
             -l en \
+            -mp 12 \
+            -mt 4 \
+            -oit 0.5 \
             --gui-enabled=false \
             --api_server-enabled=false
           ls -lh route-out/
