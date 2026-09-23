@@ -56,7 +56,6 @@ sem=importlib.util.module_from_spec(spec); spec.loader.exec_module(sem)
   (fp_rect (start -2.65 -3.15) (end 2.65 3.15)
     (stroke (width 0.05) (type default)) (fill none) (layer "F.CrtYd"))
 
-  ; signal lands per TI board-layout example
   (pad "2" smd roundrect (at -2.10 -1.825) (size 0.70 0.25)
     (layers "F.Cu" "F.Paste" "F.Mask") (roundrect_rratio 0.20))
   (pad "3" smd roundrect (at -2.10 -1.325) (size 0.70 0.25)
@@ -80,7 +79,6 @@ sem=importlib.util.module_from_spec(spec); spec.loader.exec_module(sem)
   (pad "16" smd roundrect (at -1.175 -2.60) (size 0.25 0.70)
     (layers "F.Cu" "F.Paste" "F.Mask") (roundrect_rratio 0.20))
 
-  ; corner signal lands 1 and 11 are L-shaped in the TI example
   (pad "1" smd custom (at -2.10 -2.325) (size 0.01 0.01)
     (layers "F.Cu" "F.Paste" "F.Mask")
     (options (clearance outline) (anchor rect))
@@ -97,7 +95,6 @@ sem=importlib.util.module_from_spec(spec); spec.loader.exec_module(sem)
            (xy 0.35 -0.125) (xy -0.10 -0.125) (xy -0.10 -0.625))
       (width 0) (fill yes))))
 
-  ; exposed/power lands 5, 6, 7 and 17 follow the TI comb/notch geometry
   (pad "17" smd custom (at -0.225 -1.29) (size 0.01 0.01)
     (layers "F.Cu" "F.Paste" "F.Mask")
     (options (clearance outline) (anchor rect))
