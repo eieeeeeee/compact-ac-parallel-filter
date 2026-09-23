@@ -275,6 +275,8 @@ locked_direct("GAN_HB",("C601","1"),("U6","10"),0.18)
 # Give the tiny AGND land a deterministic short copper tie to the exposed PGND pad
 # instead of relying on the autorouter to enter the package pin field.
 locked_direct("GND",("U6","15"),("U6","17"),0.20)
+# VCC bypass is equally local and should not depend on autorouter access to pad 14.
+locked_direct("+5V",("U6","14"),("C602","1"),0.18)
 
 # Three-section reconstruction ladder.
 locked_direct("GAN_F1",("L601","2"),("L602","1"),0.60)
