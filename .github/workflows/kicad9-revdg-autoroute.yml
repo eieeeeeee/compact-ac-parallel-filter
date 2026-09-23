@@ -7,6 +7,7 @@ on:
       - 'hardware/rev-d-g-v1.2/generate_pcb_rc2.py'
       - 'hardware/rev-d-g-v1.2/generate_semantic_schematic.py'
       - 'hardware/rev-d-g-v1.2/NETLIST_v1.2.csv'
+      - 'hardware/rev-d-g-v1.2/import_freerouting_ses.py'
       - '.github/workflows/kicad9-revdg-autoroute.yml'
   workflow_dispatch:
 
@@ -63,14 +64,25 @@ jobs:
             --api_server-enabled=false
           ls -lh route-out/
 
-      - name: Import SES into KiCad
+      - name: Rebuild Freerouting SES into KiCad board
         run: |
           docker run --rm --user root \
             -v "${{ github.workspace }}:/work" \
             -w /work/hardware/rev-d-g-v1.2 \
             kicad/kicad:9.0 \
-            python3 -c 'import pcbnew; b=pcbnew.LoadBoard("RevD_G_v1_2_PCB_RC2.kicad_pcb"); ok=pcbnew.ImportSpecctraSES(b,"/work/route-out/revdg-v12.ses"); print("SES_IMPORT",ok); raise SystemExit(3) if not ok else None; pcbnew.SaveBoard("/work/route-out/RevD_G_v1_2_PCB_ROUTED.kicad_pcb",b)'
+            python3 import_freerouting_ses.py \
+              RevD_G_v1_2_PCB_RC2.kicad_pcb \
+              /work/route-out/revdg-v12.ses \
+              /work/route-out/RevD_G_v1_2_PCB_ROUTED.kicad_pcb
           cp hardware/rev-d-g-v1.2/RevD_G_v1_2_PCB_RC2.kicad_pro route-out/RevD_G_v1_2_PCB_ROUTED.kicad_pro
+          python3 - <<'PY'
+          import json
+          p="route-out/RevD_G_v1_2_PCB_ROUTED.kicad_pro"
+          with open(p,encoding="utf-8") as f: d=json.load(f)
+          d["boards"]=["RevD_G_v1_2_PCB_ROUTED.kicad_pcb"]
+          d["meta"]["filename"]="RevD_G_v1_2_PCB_ROUTED.kicad_pro"
+          with open(p,"w",encoding="utf-8") as f: json.dump(d,f,indent=2)
+          PY
 
       - name: Official KiCad 9 DRC
         id: drc
@@ -102,6 +114,7 @@ jobs:
           name: revd-g-v12-autorouted
           path: |
             route-out/
+            hardware/rev-d-g-v1.2/import_freerouting_ses.py
             ci-reports/revdg-v12-autoroute-drc.rpt
           if-no-files-found: warn
 
@@ -110,5 +123,6 @@ jobs:
         run: |
           test -f route-out/RevD_G_v1_2_PCB_ROUTED.kicad_pcb
           test -f ci-reports/revdg-v12-autoroute-drc.rpt
-          ! grep -q "\[unconnected_items\]" ci-reports/revdg-v12-autoroute-drc.rpt
+          grep -q "\*\* Found 0 DRC violations \*\*" ci-reports/revdg-v12-autoroute-drc.rpt
+          grep -q "\*\* Found 0 unconnected pads \*\*" ci-reports/revdg-v12-autoroute-drc.rpt
           test "${{ steps.drc.outcome }}" = "success"
