@@ -1,0 +1,63 @@
+name: KiCad 9 Rev.D-G PCB RC1 DRC
+
+on:
+  push:
+    branches: [rev-d-g-v1.2]
+    paths:
+      - 'hardware/rev-d-g-v1.2/generate_pcb_rc1.py'
+      - 'hardware/rev-d-g-v1.2/generate_semantic_schematic.py'
+      - 'hardware/rev-d-g-v1.2/NETLIST_v1.2.csv'
+      - '.github/workflows/kicad9-revdg-pcb.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pcb-rc1:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          mkdir -p ci-reports
+          chmod 777 ci-reports
+      - run: docker pull kicad/kicad:9.0
+      - name: Generate PCB RC1 with KiCad 9 pcbnew API
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/work" \
+            -w /work/hardware/rev-d-g-v1.2 \
+            kicad/kicad:9.0 \
+            python3 generate_pcb_rc1.py
+      - name: Run official KiCad 9 PCB DRC
+        id: drc
+        continue-on-error: true
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/work" \
+            -w /work/hardware/rev-d-g-v1.2 \
+            kicad/kicad:9.0 \
+            kicad-cli pcb drc \
+              --all-track-errors \
+              --severity-all \
+              --exit-code-violations \
+              --output /work/ci-reports/revdg-v12-pcb-rc1-drc.rpt \
+              RevD_G_v1_2_PCB_RC1.kicad_pcb
+      - name: Print DRC
+        if: always()
+        run: |
+          echo "===== PCB RC1 DRC ====="
+          test -f ci-reports/revdg-v12-pcb-rc1-drc.rpt && cat ci-reports/revdg-v12-pcb-rc1-drc.rpt || true
+          echo "DRC outcome: ${{ steps.drc.outcome }}"
+      - name: Upload RC1
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: revd-g-v12-pcb-rc1
+          path: |
+            hardware/rev-d-g-v1.2/RevD_G_v1_2_PCB_RC1.kicad_pcb
+            hardware/rev-d-g-v1.2/RevDG.pretty/
+            hardware/rev-d-g-v1.2/generate_pcb_rc1.py
+            ci-reports/revdg-v12-pcb-rc1-drc.rpt
+          if-no-files-found: warn
