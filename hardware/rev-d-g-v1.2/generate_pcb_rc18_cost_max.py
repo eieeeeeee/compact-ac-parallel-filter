@@ -14,8 +14,8 @@ sem=importlib.util.module_from_spec(spec); spec.loader.exec_module(sem)
 
 # RC18-COST-MAX Stage 1:
 # same STM32G474 silicon family, LQFP64 pinout and 170 MHz/HRTIM/analog features;
-# reduce Flash from 256 KiB (RCT6) to 128 KiB (RBT3) without changing electrical topology.
-sem.PARTS["U1"]["Value"]="STM32G474RBT3"
+# keep 256 KiB Flash and the same LQFP64 electrical topology; RCT3 raises the rated ambient temperature ceiling to 125 C.
+sem.PARTS["U1"]["Value"]="STM32G474RCT3"
 
 # --- Custom RC18 footprints -------------------------------------------------
 # J1/J2: exact 5.08-mm electrical pitch and 1.2-mm drill from the validated
@@ -341,7 +341,7 @@ def text(txt,x,y,size=1.2):
     d=pcbnew.PCB_TEXT(board); d.SetText(txt); d.SetPosition(v(x,y)); d.SetLayer(pcbnew.Cmts_User)
     d.SetTextSize(v(size,size)); d.SetTextThickness(mm(0.18)); board.Add(d)
 text("Rev.D-G RC18-COST-MAX S1 - LOW VOLTAGE ONLY",50,82,1.3)
-text("S1: STM32G474RBT3 cost-down; power/analog topology unchanged",50,79.5,0.9)
+text("S1: STM32G474RCT3 cost-down; power/analog topology unchanged",50,79.5,0.9)
 text("J1/J2 Wurth body/courtyard compare pending official model",50,77.5,0.8)
 
 pcbnew.SaveBoard(str(BOARD_FILE),board)
