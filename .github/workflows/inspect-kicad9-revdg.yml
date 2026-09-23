@@ -1,4 +1,4 @@
-name: Inspect KiCad 9 routing interfaces
+name: Inspect Freerouting Docker CLI
 
 on:
   push:
@@ -15,7 +15,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: docker pull kicad/kicad:9.0
-      - name: Check pcbnew DSN/SES APIs
+      - run: docker pull ghcr.io/freerouting/freerouting:latest
+      - name: Inspect image
         run: |
-          docker run --rm kicad/kicad:9.0 python3 -c 'import pcbnew; print("VERSION",pcbnew.GetBuildVersion()); [print(n) for n in dir(pcbnew) if any(k in n.lower() for k in ("specctra","dsn","ses"))]'
+          docker inspect ghcr.io/freerouting/freerouting:latest --format 'ENTRYPOINT={{json .Config.Entrypoint}} CMD={{json .Config.Cmd}}'
+          docker run --rm --entrypoint /bin/sh ghcr.io/freerouting/freerouting:latest -lc 'echo PATH=$PATH; find / -maxdepth 4 -type f \( -name "*.jar" -o -name "*freerouting*" \) 2>/dev/null | head -50; ls -la /app /opt /freerouting 2>/dev/null || true'
