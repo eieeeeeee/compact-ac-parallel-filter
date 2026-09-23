@@ -1,0 +1,181 @@
+name: RC18 COST-MAX Stage 2C Integration
+
+on:
+  push:
+    branches: [rc18-cost-max]
+    paths:
+      - 'hardware/rev-d-g-v1.2/generate_pcb_rc18_cost_max_s2c.py'
+      - 'hardware/rev-d-g-v1.2/NETLIST_RC18_COST_MAX_S2.csv'
+      - 'hardware/rev-d-g-v1.2/tune_dsn_rules_rc18_s2c.py'
+      - 'hardware/rev-d-g-v1.2/audit_routed_pcb_rc18_s2c.py'
+      - 'hardware/rev-d-g-v1.2/import_freerouting_ses.py'
+      - 'simulations/rc18-cost-max/simulate_stage1.py'
+      - 'simulations/rc18-cost-max/simulate_stage2b_low_current.py'
+      - '.github/workflows/kicad9-rc18-cost-max-s2c.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  autoroute:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare
+        run: |
+          mkdir -p ci-reports route-out
+          chmod 777 ci-reports route-out hardware/rev-d-g-v1.2
+
+      - name: Pull KiCad 9 and Freerouting
+        run: |
+          docker pull kicad/kicad:9.0
+          docker pull ghcr.io/freerouting/freerouting:latest
+
+      - name: Python syntax check
+        run: |
+          python3 -m py_compile hardware/rev-d-g-v1.2/generate_pcb_rc18_cost_max_s2c.py
+          python3 -m py_compile hardware/rev-d-g-v1.2/verify_rc18_stage1_equivalence.py
+          python3 -m py_compile simulations/rc18-cost-max/simulate_stage1.py
+          python3 -m py_compile simulations/rc18-cost-max/simulate_stage2b_low_current.py
+          python3 -m py_compile hardware/rev-d-g-v1.2/tune_dsn_rules_rc18_s2c.py
+          python3 -m py_compile hardware/rev-d-g-v1.2/import_freerouting_ses.py
+
+      - name: Run Stage 1 numerical plant simulation
+        run: |
+          python3 simulations/rc18-cost-max/simulate_stage1.py
+          cat simulations/rc18-cost-max/out/stage1_summary.json
+
+      - name: Run Stage 2B low-current qualification
+        run: |
+          python3 simulations/rc18-cost-max/simulate_stage2b_low_current.py
+          cat simulations/rc18-cost-max/out/stage2b_low_current_power_stage.json
+
+      - name: Generate RC18 Stage 2C candidate
+        run: |
+          docker run --rm --user root \
+            -v "${{ github.workspace }}:/work" \
+            -w /work/hardware/rev-d-g-v1.2 \
+            kicad/kicad:9.0 \
+            python3 generate_pcb_rc18_cost_max_s2c.py
+
+      - name: Export Specctra DSN
+        run: |
+          docker run --rm --user root \
+            -v "${{ github.workspace }}:/work" \
+            -w /work/hardware/rev-d-g-v1.2 \
+            kicad/kicad:9.0 \
+            python3 -c 'import pcbnew; b=pcbnew.LoadBoard("RevD_G_v1_2_PCB_RC18_COST_MAX_S2C.kicad_pcb"); b.GetDesignSettings().m_MinClearance=pcbnew.FromMM(0.15); b.GetDesignSettings().m_TrackMinWidth=pcbnew.FromMM(0.15); ok=pcbnew.ExportSpecctraDSN(b,"/work/route-out/revdg-rc18-cost-max-s2c.dsn"); print("DSN_EXPORT",ok); raise SystemExit(0 if ok else 2)'
+          sudo chown -R "$(id -u):$(id -g)" route-out
+          chmod -R u+rwX route-out
+          ls -lh route-out/revdg-rc18-cost-max-s2c.dsn
+
+      - name: Apply Rev.D-G critical-net routing rules
+        run: |
+          python3 hardware/rev-d-g-v1.2/tune_dsn_rules_rc18_s2c.py route-out/revdg-rc18-cost-max-s2c.dsn
+          grep -n "(class revd_" route-out/revdg-rc18-cost-max-s2c.dsn
+
+      - name: Autoroute with Freerouting
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}/route-out:/work" \
+            ghcr.io/freerouting/freerouting:latest \
+            java -jar /app/freerouting-executable.jar \
+            -de /work/revdg-rc18-cost-max-s2c.dsn \
+            -do /work/revdg-rc18-cost-max-s2c.ses \
+            -l en \
+            -mp 20 \
+            -mt 4 \
+            -oit 0.5 \
+            --gui-enabled=false \
+            --api_server-enabled=false
+          ls -lh route-out/
+
+      - name: Rebuild Freerouting SES into KiCad board
+        run: |
+          docker run --rm --user root \
+            -v "${{ github.workspace }}:/work" \
+            -w /work/hardware/rev-d-g-v1.2 \
+            kicad/kicad:9.0 \
+            python3 import_freerouting_ses.py \
+              RevD_G_v1_2_PCB_RC18_COST_MAX_S2C.kicad_pcb \
+              /work/route-out/revdg-rc18-cost-max-s2c.ses \
+              /work/route-out/RevD_G_v1_2_PCB_RC18_COST_MAX_S2C_ROUTED.kicad_pcb
+          sudo chown -R "$(id -u):$(id -g)" route-out
+          chmod -R u+rwX route-out
+          cp hardware/rev-d-g-v1.2/RevD_G_v1_2_PCB_RC18_COST_MAX_S2C.kicad_pro route-out/RevD_G_v1_2_PCB_RC18_COST_MAX_S2C_ROUTED.kicad_pro
+          python3 - <<'PY'
+          import json
+          p="route-out/RevD_G_v1_2_PCB_RC18_COST_MAX_S2C_ROUTED.kicad_pro"
+          with open(p,encoding="utf-8") as f: d=json.load(f)
+          d["boards"]=["RevD_G_v1_2_PCB_RC18_COST_MAX_S2C_ROUTED.kicad_pcb"]
+          d["meta"]["filename"]="RevD_G_v1_2_PCB_RC18_COST_MAX_S2C_ROUTED.kicad_pro"
+          with open(p,"w",encoding="utf-8") as f: json.dump(d,f,indent=2)
+          PY
+
+      - name: Official KiCad 9 DRC
+        id: drc
+        continue-on-error: true
+        run: |
+          chmod 777 ci-reports
+          docker run --rm \
+            -v "${{ github.workspace }}:/work" \
+            -w /work/route-out \
+            kicad/kicad:9.0 \
+            kicad-cli pcb drc \
+              --all-track-errors \
+              --severity-all \
+              --exit-code-violations \
+              --output /work/ci-reports/revdg-rc18-cost-max-s2c-autoroute-drc.rpt \
+              RevD_G_v1_2_PCB_RC18_COST_MAX_S2C_ROUTED.kicad_pcb
+
+      - name: Print DRC
+        if: always()
+        run: |
+          echo "===== AUTOROUTE DRC ====="
+          cat ci-reports/revdg-rc18-cost-max-s2c-autoroute-drc.rpt || true
+          echo "DRC outcome: ${{ steps.drc.outcome }}"
+
+      - name: Audit critical routed nets
+        if: always()
+        run: |
+          docker run --rm --user root \
+            -v "${{ github.workspace }}:/work" \
+            -w /work/hardware/rev-d-g-v1.2 \
+            kicad/kicad:9.0 \
+            python3 audit_routed_pcb_rc18_s2c.py \
+              /work/route-out/RevD_G_v1_2_PCB_RC18_COST_MAX_S2C_ROUTED.kicad_pcb \
+              /work/route-out/route_audit_rc18_cost_max_s2c.csv
+          sudo chown -R "$(id -u):$(id -g)" route-out
+          cat route-out/route_audit_rc18_cost_max_s2c.csv || true
+
+
+      - name: Upload autoroute result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rc18-cost-max-s2c-routed
+          path: |
+            route-out/
+            hardware/rev-d-g-v1.2/import_freerouting_ses.py
+            hardware/rev-d-g-v1.2/tune_dsn_rules_rc18_s2c.py
+            hardware/rev-d-g-v1.2/generate_pcb_rc18_cost_max_s2c.py
+            hardware/rev-d-g-v1.2/RC18_COST_MAX.md
+            hardware/rev-d-g-v1.2/NETLIST_RC18_COST_MAX_S2.csv
+            simulations/rc18-cost-max/STAGE2B_LOW_CURRENT.md
+            simulations/rc18-cost-max/out/
+            simulations/rc18-cost-max/STAGE2B_LOW_CURRENT.md
+            hardware/rev-d-g-v1.2/audit_routed_pcb_rc18_s2c.py
+            ci-reports/revdg-rc18-cost-max-s2c-autoroute-drc.rpt
+          if-no-files-found: warn
+
+      - name: Enforce routing completeness
+        if: always()
+        run: |
+          test -f route-out/RevD_G_v1_2_PCB_RC18_COST_MAX_S2C_ROUTED.kicad_pcb
+          test -f ci-reports/revdg-rc18-cost-max-s2c-autoroute-drc.rpt
+          grep -q "\*\* Found 0 DRC violations \*\*" ci-reports/revdg-rc18-cost-max-s2c-autoroute-drc.rpt
+          grep -q "\*\* Found 0 unconnected pads \*\*" ci-reports/revdg-rc18-cost-max-s2c-autoroute-drc.rpt
+          test "${{ steps.drc.outcome }}" = "success"
