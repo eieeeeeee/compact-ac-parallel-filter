@@ -82,8 +82,9 @@ for name in sorted(set(nets)):
     board.Add(ni)
     netobjs[name] = ni
 
-# Functional sheet order; placement is globally shelf-packed inside the
-# 50 x 40 mm board so unused area can be shared between blocks.
+# Functional sheet order is retained as metadata, but P0 packing uses a
+# MaxRects best-short-side-fit solver so the 50 x 40 mm board area is used
+# efficiently. Rotation by 90 degrees is permitted.
 sheet_order = [
     "01_POWER_INPUT","02_POWER_RAILS","03_MCU_DIGITAL",
     "04_VLINE_ANALOG","05_CURRENT_SENSE_TRIP","06_SI_HALFBRIDGE",
@@ -94,33 +95,28 @@ def sheetkey(s):
         if k in s: return k
     return "09_MONITOR_THERMAL_UI"
 
-# Use the actual KiCad footprint geometry instead of hand-estimated envelopes.
-# GetBoundingBox(False, False) includes footprint graphics/pads but excludes text,
-# which is also hidden in P0.  Add pack_gap separately for assembly clearance.
-_metric_cache = {}
-def actual_env(fpname):
-    if fpname in _metric_cache:
-        return _metric_cache[fpname]
-    fp = load_fp(fpname)
-    try:
-        fp.Reference().SetVisible(False)
-        fp.Value().SetVisible(False)
-    except Exception:
-        pass
-    fp.SetPosition(pcbnew.VECTOR2I_MM(0, 0))
-    fp.SetOrientationDegrees(0)
-    bb = fp.GetBoundingBox(False, False)
-    x0 = pcbnew.ToMM(bb.GetX())
-    y0 = pcbnew.ToMM(bb.GetY())
-    w = pcbnew.ToMM(bb.GetWidth())
-    h = pcbnew.ToMM(bb.GetHeight())
-    # Ensure tiny/bare footprints still reserve a manufacturable envelope.
-    w = max(w, 1.0)
-    h = max(h, 1.0)
-    _metric_cache[fpname] = (x0, y0, w, h)
-    return x0, y0, w, h
+# Conservative placement envelopes, roughly courtyard-sized.  A further
+# 0.25 mm total guard is added to each rectangle before packing.
+def env(fpname, ref):
+    if ref == "J201": return (7.2, 1.8)
+    s = fpname.lower()
+    if "jst_xh" in s: return (6.5, 6.0)
+    if "lqfp-48" in s: return (9.5, 9.5)
+    if "3225" in s: return (4.0, 3.3)
+    if "d_sma" in s: return (6.0, 3.8)
+    if "2512" in s: return (7.0, 3.7)
+    if "1206" in s: return (4.0, 2.5)
+    if "0805" in s: return (3.1, 2.0)
+    if "0603" in s: return (2.5, 1.6)
+    if "sot-23" in s: return (3.4, 3.2)
+    if "msop" in s or "vssop" in s or "ucc27282" in s: return (7.0, 3.8)
+    if "csd17381" in s: return (1.8, 1.3)
+    if "l_1008" in s: return (4.0, 3.0)
+    if "sod-123" in s: return (4.5, 2.5)
+    if "rect_l7" in s: return (8.0, 3.5)
+    return (3.0, 2.0)
 
-groups = {k:[] for k in sheet_order}
+items = []
 for ref,c in comps.items():
     if ref.startswith("#") or ref in SKIP:
         continue
@@ -129,67 +125,70 @@ for ref,c in comps.items():
         fpname = "RC18_Custom:J201_POGO5"
     if not fpname:
         raise RuntimeError(f"{ref} has no footprint")
-    k = sheetkey(c["sheet"])
-    bx,by,w,h = actual_env(fpname)
-    groups[k].append((ref, c, fpname, bx, by, w, h))
-for k in groups:
-    groups[k].sort(key=lambda z: (-(z[5]*z[6]), -max(z[5],z[6]), z[0]))
+    w,h = env(fpname, ref)
+    # packing rectangle adds 0.25 mm guard; actual footprint is centered inside.
+    items.append((ref, c, fpname, w + 0.25, h + 0.25, sheetkey(c["sheet"])))
 
-# MaxRects-style placement on the front side.  Items are processed in functional
-# sheet order and large-first within each block.  0.22 mm pack gap + 0.7 mm edge margin.
-free_rects = [(0.6, 0.6, 48.8, 38.8)]  # x,y,w,h
+# MaxRects Best Short Side Fit in the 48 x 38 mm inner board region.
+BIN_W, BIN_H = 48.0, 38.0
+ORIGIN_X, ORIGIN_Y = 1.0, 1.0
+free_rects = [(0.0, 0.0, BIN_W, BIN_H)]
 placements = {}
-gap = 0.32
 
 def intersects(a,b):
     ax,ay,aw,ah=a; bx,by,bw,bh=b
     return not (bx >= ax+aw or bx+bw <= ax or by >= ay+ah or by+bh <= ay)
 
-def contained(a,b):
+def contains(a,b):
     ax,ay,aw,ah=a; bx,by,bw,bh=b
-    return ax >= bx-1e-9 and ay >= by-1e-9 and ax+aw <= bx+bw+1e-9 and ay+ah <= by+bh+1e-9
+    return (bx >= ax-1e-9 and by >= ay-1e-9 and
+            bx+bw <= ax+aw+1e-9 and by+bh <= ay+ah+1e-9)
 
-def split_free(used):
-    global free_rects
-    ux,uy,uw,uh=used
-    out=[]
+# Large-first; sheet order is the deterministic tie-breaker.
+rank = {k:i for i,k in enumerate(sheet_order)}
+items.sort(key=lambda t: (max(t[3],t[4]), t[3]*t[4], -rank[t[5]]), reverse=True)
+
+for ref,c,fpname,w,h,sk in items:
+    best = None
+    candidates = [(w,h,0)]
+    if abs(w-h) > 1e-9:
+        candidates.append((h,w,90))
+    for i,(x,y,fw,fh) in enumerate(free_rects):
+        for rw,rh,rot in candidates:
+            if rw <= fw+1e-9 and rh <= fh+1e-9:
+                lw,lh = fw-rw, fh-rh
+                score = (min(lw,lh), max(lw,lh), y, x)
+                if best is None or score < best[0]:
+                    best = (score,i,x,y,rw,rh,rot)
+    if best is None:
+        raise RuntimeError(f"MaxRects overflow at {ref}: envelope={w:.2f}x{h:.2f}")
+    _,idx,x,y,rw,rh,rot = best
+    used = (x,y,rw,rh)
+
+    new_free=[]
     for fr in free_rects:
         if not intersects(fr, used):
-            out.append(fr); continue
-        fx,fy,fw,fh=fr
-        if ux > fx:
-            out.append((fx,fy,ux-fx,fh))
-        if ux+uw < fx+fw:
-            out.append((ux+uw,fy,fx+fw-(ux+uw),fh))
-        if uy > fy:
-            out.append((fx,fy,fw,uy-fy))
-        if uy+uh < fy+fh:
-            out.append((fx,uy+uh,fw,fy+fh-(uy+uh)))
-    out=[r for r in out if r[2] > 0.15 and r[3] > 0.15]
-    pruned=[]
-    for i,r in enumerate(out):
-        if any(i!=j and contained(r,q) for j,q in enumerate(out)):
+            new_free.append(fr)
             continue
-        pruned.append(r)
-    free_rects=pruned
+        fx,fy,fw,fh=fr; ux,uy,uw,uh=used
+        if ux > fx: new_free.append((fx,fy,ux-fx,fh))
+        if ux+uw < fx+fw: new_free.append((ux+uw,fy,fx+fw-(ux+uw),fh))
+        if uy > fy: new_free.append((fx,fy,fw,uy-fy))
+        if uy+uh < fy+fh: new_free.append((fx,uy+uh,fw,fy+fh-(uy+uh)))
 
-for k in sheet_order:
-    for ref,c,fpname,bx,by,w,h in groups[k]:
-        choices=[]
-        for i,(fx,fy,fw,fh) in enumerate(free_rects):
-            pw,ph=w+gap,h+gap
-            if pw <= fw+1e-9 and ph <= fh+1e-9:
-                short=min(fw-pw,fh-ph)
-                long=max(fw-pw,fh-ph)
-                choices.append((short,long,fy,fx,i,pw,ph))
-        if not choices:
-            raise RuntimeError(f"MaxRects placement overflow at {ref}; free={len(free_rects)}")
-        _,_,fy,fx,i,pw,ph=min(choices)
-        # Place the actual bounding-box top-left at the reserved rectangle + half gap.
-        ox = fx + gap/2 - bx
-        oy = fy + gap/2 - by
-        placements[ref]=(ox, oy, 0)
-        split_free((fx,fy,pw,ph))
+    # Remove free rectangles fully contained by another free rectangle.
+    pruned=[]
+    for ii,ra in enumerate(new_free):
+        if any(ii != jj and contains(rb,ra) for jj,rb in enumerate(new_free)):
+            continue
+        pruned.append(ra)
+    free_rects = pruned
+
+    # Actual footprint center is the center of the guarded rectangle.
+    placements[ref] = (ORIGIN_X+x+rw/2, ORIGIN_Y+y+rh/2, rot)
+
+max_x=max(placements[r][0] for r in placements)
+print(f"MaxRects packed={len(placements)} inner={BIN_W}x{BIN_H}mm")
 
 # Create and place footprints, assign nets.
 for ref,c in comps.items():
