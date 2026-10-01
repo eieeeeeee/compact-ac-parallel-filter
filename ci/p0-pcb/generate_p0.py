@@ -38,6 +38,9 @@ import shutil
 j201_src = Path("/work/ci/p0-pcb/footprints/J201_POGO5.kicad_mod")
 j201_dst = BASE / "RC18_Custom.pretty" / "J201_POGO5.kicad_mod"
 shutil.copy2(j201_src, j201_dst)
+ucc_src = Path("/work/ci/p0-pcb/footprints/UCC27282_DRC10_TI_CANDIDATE.kicad_mod")
+ucc_dst = BASE / "RC18_Custom.pretty" / "UCC27282_DRC10_TI_CANDIDATE.kicad_mod"
+shutil.copy2(ucc_src, ucc_dst)
 
 tree = ET.parse(NET)
 root = tree.getroot()
@@ -91,25 +94,29 @@ def sheetkey(s):
         if k in s: return k
     return "09_MONITOR_THERMAL_UI"
 
-# Approximate courtyard envelopes by footprint family.
-# Values include a small assembly margin; KiCad DRC is the final authority.
-def env(fpname, ref):
-    if ref == "J201": return (6.5, 2.0)
-    s = fpname.lower()
-    if "jst_xh" in s: return (5.2, 6.5)
-    if "lqfp-48" in s: return (9.5, 9.5)
-    if "crystal_smd_3225" in s: return (4.0, 3.5)
-    if "sma" in s: return (6.0, 3.5)
-    if "2512" in s: return (7.0, 3.0)
-    if "1206" in s: return (4.0, 2.1)
-    if "0805" in s: return (3.0, 1.9)
-    if "sot-23" in s: return (3.2, 3.0)
-    if "msop" in s or "vssop" in s or "ucc27282" in s: return (6.5, 3.5)
-    if "csd17381" in s: return (1.8, 1.4)
-    if "l_1008" in s: return (4.0, 2.6)
-    if "sod-123" in s: return (4.0, 2.5)
-    if "rect_l7" in s: return (8.0, 3.5)
-    return (2.4, 1.5)
+# Use the actual KiCad footprint geometry instead of hand-estimated envelopes.
+# GetBoundingBox(False, False) includes footprint graphics/pads but excludes text,
+# which is also hidden in P0.  Add pack_gap separately for assembly clearance.
+_metric_cache = {}
+def actual_env(fpname):
+    if fpname in _metric_cache:
+        return _metric_cache[fpname]
+    fp = load_fp(fpname)
+    try:
+        fp.Reference().SetVisible(False)
+        fp.Value().SetVisible(False)
+    except Exception:
+        pass
+    fp.SetPosition(pcbnew.VECTOR2I_MM(0, 0))
+    fp.SetOrientationDegrees(0)
+    bb = fp.GetBoundingBox(False, False)
+    w = pcbnew.ToMM(bb.GetWidth())
+    h = pcbnew.ToMM(bb.GetHeight())
+    # Ensure tiny/bare footprints still reserve a manufacturable envelope.
+    w = max(w, 1.0)
+    h = max(h, 1.0)
+    _metric_cache[fpname] = (w, h)
+    return w, h
 
 groups = {k:[] for k in sheet_order}
 for ref,c in comps.items():
@@ -121,16 +128,16 @@ for ref,c in comps.items():
     if not fpname:
         raise RuntimeError(f"{ref} has no footprint")
     k = sheetkey(c["sheet"])
-    w,h = env(fpname, ref)
+    w,h = actual_env(fpname)
     groups[k].append((ref, c, fpname, w, h))
 for k in groups:
     groups[k].sort(key=lambda z: (-(z[3]*z[4]), -max(z[3],z[4]), z[0]))
 
 # MaxRects-style placement on the front side.  Items are processed in functional
 # sheet order and large-first within each block.  0.22 mm pack gap + 0.7 mm edge margin.
-free_rects = [(0.7, 0.7, 48.6, 38.6)]  # x,y,w,h
+free_rects = [(0.6, 0.6, 48.8, 38.8)]  # x,y,w,h
 placements = {}
-gap = 0.22
+gap = 0.32
 
 def intersects(a,b):
     ax,ay,aw,ah=a; bx,by,bw,bh=b
@@ -219,9 +226,8 @@ seg(0,0,50,0); seg(50,0,50,40); seg(50,40,0,40); seg(0,40,0,0)
 pcbnew.SaveBoard(str(OUT), board)
 print(f"P0 board saved: {OUT}")
 print(f"placed={len(placements)} skipped_DNP={sorted(SKIP)} size=50x40mm")
-for k in zones:
+for k in sheet_order:
     print(k, len(groups[k]))
-
 
 # Placement-stage project rule: routing is intentionally not present yet.
 # Ignore only unconnected-items for P0; all geometric/clearance/courtyard rules remain active.
@@ -232,6 +238,10 @@ boardcfg = pdata.setdefault("board", {})
 dsgn = boardcfg.setdefault("design_settings", {})
 sev = dsgn.setdefault("rule_severities", {})
 sev["unconnected_items"] = "ignore"
+# Fine-pitch parts in this design (notably CSD17381F4) require 0.10 mm copper clearance.
+for cls in pdata.setdefault("net_settings", {}).setdefault("classes", []):
+    if cls.get("name") == "Default":
+        cls["clearance"] = 0.10
 pdata["meta"]["filename"] = "RC18_RevB_SI.kicad_pro"
 pro.write_text(json.dumps(pdata, indent=2) + "\n", encoding="utf-8")
 print("P0 project rule: unconnected_items=ignore (placement gate only)")
