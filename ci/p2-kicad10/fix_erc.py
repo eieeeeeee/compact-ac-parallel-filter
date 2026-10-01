@@ -188,3 +188,49 @@ kprj = "$" + "{KIPRJMOD}"
     encoding="utf-8"
 )
 print("rewrote library tables to project-relative KIPRJMOD URIs")
+
+
+# Rebuild RC18_Custom as a modern KiCad symbol library directly from the
+# embedded symbol definitions in the converted schematics.  This guarantees
+# that ERC compares each placed symbol against an identical library definition.
+custom_symbols = {}
+for sch in sorted(base.glob("*.kicad_sch")):
+    if sch.name == "RC18_RevB_SI.kicad_sch":
+        continue
+    txt = sch.read_text(encoding="utf-8")
+    lp = txt.find("(lib_symbols")
+    if lp < 0:
+        continue
+    lblock = block(txt, lp)
+    for mm in re.finditer(r'\(symbol "(RC18_Custom:[^"]+)"', lblock):
+        sb = block(lblock, mm.start())
+        libid = mm.group(1)
+        bare = libid.split(":", 1)[1]
+        if bare not in custom_symbols:
+            custom_symbols[bare] = sb.replace(
+                f'(symbol "{libid}"',
+                f'(symbol "{bare}"',
+                1
+            )
+
+symout = [
+    '(kicad_symbol_lib (version 20231120) (generator "openai_p2_erc")'
+]
+for name in sorted(custom_symbols):
+    symout.append(custom_symbols[name])
+symout.append(')')
+(base / "RC18_Custom.kicad_sym").write_text(
+    "\n".join(symout) + "\n",
+    encoding="utf-8"
+)
+print(f"generated RC18_Custom.kicad_sym symbols={len(custom_symbols)}")
+
+kprj = "$" + "{KIPRJMOD}"
+(base / "sym-lib-table").write_text(
+    '(sym_lib_table\n'
+    '  (version 7)\n'
+    f'  (lib (name "RC18_Custom")(type "KiCad")(uri "{kprj}/RC18_Custom.kicad_sym")(options "")(descr "RC18 embedded-equivalent symbols"))\n'
+    ')\n',
+    encoding="utf-8"
+)
+print("switched RC18_Custom symbol library to embedded-equivalent modern format")
