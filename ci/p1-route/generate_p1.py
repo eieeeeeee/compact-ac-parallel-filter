@@ -330,11 +330,11 @@ route("U6",10,"R604",1,0.20,mid=[(5.00,10.00),(10.625,10.00)],label="LO_DRV")
 # Q602 source is below the gate, so land on the upper/left part of gate copper.
 r604_out=getpad("R604",2)
 p=mmpt(r604_out.GetPosition())
-lo_gate_land=(9.80,6.02)
-lo_pts=[p,(8.20,9.00),(8.20,6.02),lo_gate_land]
+lo_gate_land=(9.80,6.10)
+lo_pts=[p,(8.20,9.00),(8.20,6.10),lo_gate_land]
 for aa,bb in zip(lo_pts,lo_pts[1:]):
-    add_segment(r604_out,aa,bb,0.20)
-route_log.append(("Q602 gate after Rg","R604","2","Q602","1",0.20,len(lo_pts)-1))
+    add_segment(r604_out,aa,bb,0.10)
+route_log.append(("Q602 gate after Rg","R604","2","Q602","1",0.10,len(lo_pts)-1))
 
 # UCC27282 switch reference is low-current.  Leave pin 5 to the right of the
 # exposed pad, run between the two gate corridors at y=5.70, and join GAN_SW
@@ -345,7 +345,9 @@ route("U6",5,"Q602",3,0.20,
 qsw=getpad("Q601",2)
 qlo=getpad("Q602",3)
 l1=getpad("L601",1)
-p_qsw=mmpt(qsw.GetPosition()); p_qlo=mmpt(qlo.GetPosition()); p_l1=mmpt(l1.GetPosition())
+p_qlo=mmpt(qlo.GetPosition()); p_l1=mmpt(l1.GetPosition())
+# Q601 source landing is inside pad 2 but displaced up/right, away from gate pad 1.
+p_qsw=(10.60,4.42)
 junction=(12.00,p_qsw[1])
 lower=(12.00,p_qlo[1])
 add_segment(qsw,p_qsw,junction,0.20)
