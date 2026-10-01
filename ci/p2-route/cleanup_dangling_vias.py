@@ -25,7 +25,7 @@ for net,tx,ty in targets:
     for item in list(board.GetTracks()):
         if not isinstance(item, pcbnew.PCB_VIA):
             continue
-        pos=item.GetPosition()
+        pos=item.GetStart()
         x=pcbnew.ToMM(pos.x); y=pcbnew.ToMM(pos.y)
         if item.GetNetname()==net and abs(x-tx)<=0.03 and abs(y-ty)<=0.03:
             hit=item
