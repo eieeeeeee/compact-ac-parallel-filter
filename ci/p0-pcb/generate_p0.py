@@ -43,7 +43,7 @@ def make_pogo5(board):
         p.SetShape(pcbnew.PAD_SHAPE_CIRCLE)
         p.SetSize(pcbnew.VECTOR2I_MM(1.4, 1.4))
         p.SetPosition(pcbnew.VECTOR2I_MM((i-2)*1.27, 0))
-        p.SetLayerSet(pcbnew.LSET(pcbnew.F_Cu, pcbnew.F_Paste, pcbnew.F_Mask))
+        p.SetLayerSet(pcbnew.LSET([pcbnew.F_Cu, pcbnew.F_Paste, pcbnew.F_Mask]))
         fp.Add(p)
     return fp
 
