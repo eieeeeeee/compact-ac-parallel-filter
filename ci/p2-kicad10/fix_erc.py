@@ -110,3 +110,23 @@ for f in sorted(base.glob("*.kicad_sch")):
 print(f"TOTAL moved_labels={total_labels} moved_no_connect={total_nc}")
 if total_labels != 121 or total_nc != 2:
     raise SystemExit(f"unexpected patch count labels={total_labels} nc={total_nc}")
+
+
+# Make project-local library tables resolvable in headless kicad-cli.
+# Use absolute paths because this package is checked as a standalone schematic tree.
+absbase = base.resolve().as_posix()
+(base / "sym-lib-table").write_text(
+    '(sym_lib_table\n'
+    '  (version 7)\n'
+    f'  (lib (name "RC18_Custom")(type "Legacy")(uri "{absbase}/RC18_Custom.lib")(options "")(descr "RC18 local legacy symbols"))\n'
+    ')\n',
+    encoding="utf-8"
+)
+(base / "fp-lib-table").write_text(
+    '(fp_lib_table\n'
+    '  (version 7)\n'
+    f'  (lib (name "RC18_Custom")(type "KiCad")(uri "{absbase}/RC18_Custom.pretty")(options "")(descr "RC18 local footprints"))\n'
+    ')\n',
+    encoding="utf-8"
+)
+print("rewrote sym-lib-table and fp-lib-table with absolute paths")
