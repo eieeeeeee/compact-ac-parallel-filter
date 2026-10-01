@@ -37,10 +37,10 @@ def load_fp(fpname):
 import shutil
 j201_src = Path("/work/ci/p0-pcb/footprints/J201_POGO5.kicad_mod")
 j201_dst = BASE / "RC18_Custom.pretty" / "J201_POGO5.kicad_mod"
-shutil.copy2(j201_src, j201_dst)
+shutil.copyfile(j201_src, j201_dst)
 ucc_src = Path("/work/ci/p0-pcb/footprints/UCC27282_DRC10_TI_CANDIDATE.kicad_mod")
 ucc_dst = BASE / "RC18_Custom.pretty" / "UCC27282_DRC10_TI_CANDIDATE.kicad_mod"
-shutil.copy2(ucc_src, ucc_dst)
+shutil.copyfile(ucc_src, ucc_dst)
 
 tree = ET.parse(NET)
 root = tree.getroot()
