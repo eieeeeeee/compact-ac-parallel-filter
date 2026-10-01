@@ -313,17 +313,28 @@ route("C604",2,"U6",5,0.20,mid=[(7.275,3.30),(7.00,3.30)],label="GAN_SW bootstra
 # C604 to pad 1; Q601_G drops in the x=8.70 corridor and approaches the gate
 # from below, away from the source pad.
 route("U6",4,"R603",1,0.20,mid=[(6.50,1.40),(10.625,1.40)],label="HO_DRV")
-route("R603",2,"Q601",1,0.20,
-      mid=[(8.70,2.30),(8.70,5.30),(10.525,5.30)],
-      label="Q601 gate after Rg")
+# Land inside the gate copper on the side opposite the source pad instead of
+# at pad center; this preserves 0.20-mm track width without encroaching on source.
+r603_out=getpad("R603",2)
+p=mmpt(r603_out.GetPosition())
+hi_gate_land=(10.60,4.98)
+hi_pts=[p,(8.70,2.30),(8.70,5.30),(10.60,5.30),hi_gate_land]
+for aa,bb in zip(hi_pts,hi_pts[1:]):
+    add_segment(r603_out,aa,bb,0.20)
+route_log.append(("Q601 gate after Rg","R603","2","Q601","1",0.20,len(hi_pts)-1))
 
 # Low-side gate: R604 is also rotated.  Its gate trace uses the x=8.20
 # corridor and enters Q602 pin 1 from the left.  This keeps it clear of the
 # high-side gate route and the switch-sense corridor.
 route("U6",10,"R604",1,0.20,mid=[(5.00,10.00),(10.625,10.00)],label="LO_DRV")
-route("R604",2,"Q602",1,0.20,
-      mid=[(8.20,9.00),(8.20,6.125)],
-      label="Q602 gate after Rg")
+# Q602 source is below the gate, so land on the upper/left part of gate copper.
+r604_out=getpad("R604",2)
+p=mmpt(r604_out.GetPosition())
+lo_gate_land=(9.80,6.02)
+lo_pts=[p,(8.20,9.00),(8.20,6.02),lo_gate_land]
+for aa,bb in zip(lo_pts,lo_pts[1:]):
+    add_segment(r604_out,aa,bb,0.20)
+route_log.append(("Q602 gate after Rg","R604","2","Q602","1",0.20,len(lo_pts)-1))
 
 # UCC27282 switch reference is low-current.  Leave pin 5 to the right of the
 # exposed pad, run between the two gate corridors at y=5.70, and join GAN_SW
@@ -391,9 +402,6 @@ dru=BASE/"RC18_RevB_SI.kicad_dru"
 dru.write_text("""(version 1)
 (rule "CSD17381F4 internal pad clearance"
   (condition "((A.Reference == 'Q601' && B.Reference == 'Q601') || (A.Reference == 'Q602' && B.Reference == 'Q602'))")
-  (constraint clearance (min 0.10mm)))
-(rule "CSD17381F4 gate-net fanout clearance"
-  (condition "((A.Net == 'Q601_G' && (B.Net == 'GAN_SW' || B.Net == '12V_PROT')) || (B.Net == 'Q601_G' && (A.Net == 'GAN_SW' || A.Net == '12V_PROT')) || (A.Net == 'Q602_G' && (B.Net == 'GAN_SW' || B.Net == 'GND')) || (B.Net == 'Q602_G' && (A.Net == 'GAN_SW' || A.Net == 'GND')))")
   (constraint clearance (min 0.10mm)))
 """,encoding="utf-8")
 print("P1 rule: unconnected_items=ignore only; routed copper/clearance/courtyard remain live")
