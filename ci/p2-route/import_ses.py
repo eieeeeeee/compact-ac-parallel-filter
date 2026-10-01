@@ -17,9 +17,14 @@ after = len(list(board.GetTracks()))
 pcbnew.SaveBoard(str(out), board)
 
 pdata = json.loads(pro.read_text(encoding="utf-8"))
-ds = pdata.setdefault("board", {}).setdefault("design_settings", {})
-sev = ds.setdefault("rule_severities", {})
+dsj = pdata.setdefault("board", {}).setdefault("design_settings", {})
+sev = dsj.setdefault("rule_severities", {})
 sev["unconnected_items"] = "error"
+dsj.setdefault("rules", {})["min_clearance"] = 0.10
+for nc in pdata.setdefault("net_settings", {}).setdefault("classes", []):
+    if nc.get("name") == "Default":
+        nc["clearance"] = 0.10
+        nc["track_width"] = 0.20
 pdata["meta"]["filename"] = pro.name
 pro.write_text(json.dumps(pdata, indent=2) + "\n", encoding="utf-8")
 
