@@ -405,5 +405,8 @@ dru.write_text("""(version 1)
 (rule "CSD17381F4 internal pad clearance"
   (condition "((A.Reference == 'Q601' && B.Reference == 'Q601') || (A.Reference == 'Q602' && B.Reference == 'Q602'))")
   (constraint clearance (min 0.10mm)))
+(rule "Q602 gate neck track width"
+  (condition "A.Net == 'Q602_G' && A.Type == 'track'")
+  (constraint track_width (min 0.10mm)))
 """,encoding="utf-8")
 print("P1 rule: unconnected_items=ignore only; routed copper/clearance/courtyard remain live")
