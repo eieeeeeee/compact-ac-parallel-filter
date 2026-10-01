@@ -99,24 +99,25 @@ def sheetkey(s):
         if k in s: return k
     return "09_MONITOR_THERMAL_UI"
 
-# Approximate placement envelopes by footprint family, intentionally conservative.
+# Approximate courtyard envelopes by footprint family.
+# Values include a small assembly margin; KiCad DRC is the final authority.
 def env(fpname, ref):
-    if ref == "J201": return (8.0, 2.2)
+    if ref == "J201": return (6.5, 2.0)
     s = fpname.lower()
-    if "jst_xh" in s: return (6.0, 7.0)
-    if "lqfp-48" in s: return (10.0, 10.0)
-    if "crystal_smd_3225" in s: return (4.5, 4.0)
-    if "sma" in s: return (6.0, 4.0)
-    if "2512" in s: return (7.0, 4.0)
-    if "1206" in s: return (4.0, 2.8)
-    if "0805" in s: return (3.4, 2.5)
-    if "sot-23" in s: return (3.5, 3.4)
-    if "msop" in s or "vssop" in s or "ucc27282" in s: return (7.2, 4.3)
-    if "csd17381" in s: return (2.2, 1.8)
-    if "l_1008" in s: return (4.3, 3.2)
-    if "sod-123" in s: return (4.5, 3.0)
-    if "rect_l7" in s: return (8.0, 4.0)
-    return (2.8, 2.2)
+    if "jst_xh" in s: return (5.2, 6.5)
+    if "lqfp-48" in s: return (9.5, 9.5)
+    if "crystal_smd_3225" in s: return (4.0, 3.5)
+    if "sma" in s: return (6.0, 3.5)
+    if "2512" in s: return (7.0, 3.0)
+    if "1206" in s: return (4.0, 2.1)
+    if "0805" in s: return (3.0, 1.9)
+    if "sot-23" in s: return (3.2, 3.0)
+    if "msop" in s or "vssop" in s or "ucc27282" in s: return (6.5, 3.5)
+    if "csd17381" in s: return (1.8, 1.4)
+    if "l_1008" in s: return (4.0, 2.6)
+    if "sod-123" in s: return (4.0, 2.5)
+    if "rect_l7" in s: return (8.0, 3.5)
+    return (2.4, 1.5)
 
 groups = {k:[] for k in sheet_order}
 for ref,c in comps.items():
@@ -129,29 +130,63 @@ for ref,c in comps.items():
         raise RuntimeError(f"{ref} has no footprint")
     k = sheetkey(c["sheet"])
     w,h = env(fpname, ref)
-    groups[k].append((-(w*h), ref, c, fpname, w, h))
+    groups[k].append((ref, c, fpname, w, h))
 for k in groups:
-    groups[k].sort()
+    groups[k].sort(key=lambda z: (-(z[3]*z[4]), -max(z[3],z[4]), z[0]))
 
-# Dense global shelf placement. Components remain ordered by functional sheet,
-# with a small inter-block gap but no hard partition that wastes board area.
+# MaxRects-style placement on the front side.  Items are processed in functional
+# sheet order and large-first within each block.  0.22 mm pack gap + 0.7 mm edge margin.
+free_rects = [(0.7, 0.7, 48.6, 38.6)]  # x,y,w,h
 placements = {}
-x0,y0,xmax,ymax = 1.0,1.0,49.0,39.0
-x,y,rowh = x0,y0,0.0
+gap = 0.22
+
+def intersects(a,b):
+    ax,ay,aw,ah=a; bx,by,bw,bh=b
+    return not (bx >= ax+aw or bx+bw <= ax or by >= ay+ah or by+bh <= ay)
+
+def contained(a,b):
+    ax,ay,aw,ah=a; bx,by,bw,bh=b
+    return ax >= bx-1e-9 and ay >= by-1e-9 and ax+aw <= bx+bw+1e-9 and ay+ah <= by+bh+1e-9
+
+def split_free(used):
+    global free_rects
+    ux,uy,uw,uh=used
+    out=[]
+    for fr in free_rects:
+        if not intersects(fr, used):
+            out.append(fr); continue
+        fx,fy,fw,fh=fr
+        if ux > fx:
+            out.append((fx,fy,ux-fx,fh))
+        if ux+uw < fx+fw:
+            out.append((ux+uw,fy,fx+fw-(ux+uw),fh))
+        if uy > fy:
+            out.append((fx,fy,fw,uy-fy))
+        if uy+uh < fy+fh:
+            out.append((fx,uy+uh,fw,fy+fh-(uy+uh)))
+    out=[r for r in out if r[2] > 0.15 and r[3] > 0.15]
+    pruned=[]
+    for i,r in enumerate(out):
+        if any(i!=j and contained(r,q) for j,q in enumerate(out)):
+            continue
+        pruned.append(r)
+    free_rects=pruned
+
 for k in sheet_order:
-    first=True
-    for _,ref,c,fpname,w,h in groups[k]:
-        if x + w > xmax:
-            x=x0; y += rowh + 0.30; rowh=0.0
-        if y + h > ymax + 1e-6:
-            raise RuntimeError(f"global placement overflow at {ref}: y={y:.2f}, h={h:.2f}, ymax={ymax:.2f}")
-        placements[ref] = (x+w/2, y+h/2, 0)
-        x += w + 0.28
-        rowh=max(rowh,h)
-        first=False
-    x += 0.45  # visual/functional break between sheets
-    if x > xmax - 2.0:
-        x=x0; y += rowh + 0.30; rowh=0.0
+    for ref,c,fpname,w,h in groups[k]:
+        choices=[]
+        for i,(fx,fy,fw,fh) in enumerate(free_rects):
+            for rot,(rw,rh) in [(0,(w,h)),(90,(h,w))]:
+                pw,ph=rw+gap,rh+gap
+                if pw <= fw+1e-9 and ph <= fh+1e-9:
+                    short=min(fw-pw,fh-ph)
+                    long=max(fw-pw,fh-ph)
+                    choices.append((short,long,fy,fx,i,rot,rw,rh,pw,ph))
+        if not choices:
+            raise RuntimeError(f"MaxRects placement overflow at {ref}; free={len(free_rects)}")
+        _,_,fy,fx,i,rot,rw,rh,pw,ph=min(choices)
+        placements[ref]=(fx+rw/2, fy+rh/2, rot)
+        split_free((fx,fy,pw,ph))
 
 # Create and place footprints, assign nets.
 for ref,c in comps.items():
