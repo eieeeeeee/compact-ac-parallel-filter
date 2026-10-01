@@ -75,6 +75,32 @@ jobs:
           set -euxo pipefail
           docker run --rm             -v "${{ github.workspace }}:/work"             -w /work/hardware/rc18-revb-si-p2-full/P2_KiCad10_ERC0_Footprint             kicad/kicad:10.0.6             python3 /work/ci/p2-route/import_ses.py               /work/hardware/rc18-revb-si-p2-full/P2_KiCad10_ERC0_Footprint/RC18_RevB_SI.kicad_pcb               /work/ci-reports/RC18_RevB_SI_P2.ses               /work/hardware/rc18-revb-si-p2-full/P2_KiCad10_ERC0_Footprint/RC18_RevB_SI.kicad_pcb               /work/hardware/rc18-revb-si-p2-full/P2_KiCad10_ERC0_Footprint/RC18_RevB_SI.kicad_pro
 
+      - name: Run KiCad pre-clean DRC
+        id: predrc
+        continue-on-error: true
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/work" \
+            -w /work/hardware/rc18-revb-si-p2-full/P2_KiCad10_ERC0_Footprint \
+            kicad/kicad:10.0.6 \
+            kicad-cli pcb drc \
+              --severity-all \
+              --exit-code-violations \
+              --output /work/ci-reports/RC18_P2_PRECLEAN_DRC.rpt \
+              RC18_RevB_SI.kicad_pcb
+
+      - name: Remove only KiCad-reported dangling vias
+        id: cleanup
+        continue-on-error: true
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/work" \
+            -w /work/hardware/rc18-revb-si-p2-full/P2_KiCad10_ERC0_Footprint \
+            kicad/kicad:10.0.6 \
+            python3 /work/ci/p2-route/cleanup_dangling_vias.py \
+              /work/hardware/rc18-revb-si-p2-full/P2_KiCad10_ERC0_Footprint/RC18_RevB_SI.kicad_pcb \
+              /work/ci-reports/RC18_P2_PRECLEAN_DRC.rpt
+
       - name: Run full KiCad 10 DRC
         id: drc
         continue-on-error: true
@@ -86,6 +112,8 @@ jobs:
         run: |
           echo "ROUTE outcome: ${{ steps.route.outcome }}"
           echo "IMPORT outcome: ${{ steps.import.outcome }}"
+          echo "PRECLEAN DRC outcome: ${{ steps.predrc.outcome }}"
+          echo "CLEANUP outcome: ${{ steps.cleanup.outcome }}"
           echo "DRC outcome: ${{ steps.drc.outcome }}"
           test -f ci-reports/RC18_P2_FULL_DRC.rpt && cat ci-reports/RC18_P2_FULL_DRC.rpt || true
           echo "---- Freerouting tail ----"
@@ -106,4 +134,5 @@ jobs:
         run: |
           test "${{ steps.route.outcome }}" = "success"
           test "${{ steps.import.outcome }}" = "success"
+          test "${{ steps.cleanup.outcome }}" = "success"
           test "${{ steps.drc.outcome }}" = "success"
