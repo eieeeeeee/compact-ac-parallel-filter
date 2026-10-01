@@ -136,7 +136,7 @@ fixed={
     "Q601": (10.2, 4.7, 180),
     "Q602": (10.2, 6.3,   0),
     "C604": (5.7,  3.0,   0),
-    "R603": (12.3, 2.4, 180),
+    "R603": (10.0, 2.1,   0),
     "R604": (8.5,  9.2,  90),
 
     # Three-stage reconstruction LC
@@ -223,6 +223,12 @@ for ref,(ox,oy,rot) in fixed.items():
     subtract_used((gx0-ORIGIN_X,gy0-ORIGIN_Y,gx1-gx0,gy1-gy0))
     placements[ref]=(ox,oy,rot)
 
+# Reserve the complete high-dV/dt priority corridor so auto-packed parts
+# cannot intrude between the half-bridge and the three-stage LC.
+# Coordinates below are global board mm: x0,y0,x1,y1.
+for rx0,ry0,rx1,ry1 in [(3.5,1.2,29.5,11.2)]:
+    subtract_used((rx0-ORIGIN_X,ry0-ORIGIN_Y,rx1-rx0,ry1-ry0))
+
 # Pack all non-priority parts around the frozen blocks.
 rest=[x for x in items if x[0] not in fixed]
 rest.sort(key=lambda t:(max(t[4],t[5]),t[4]*t[5],-rank[t[6]]), reverse=True)
@@ -299,11 +305,11 @@ def route(a_ref,a_pin,b_ref,b_pin,width,mid=None,layer=pcbnew.F_Cu,label=""):
 
 # --- P1 priority routing ---
 # Bootstrap and gate drive.  Keep these narrow at the driver pins.
-route("C604",1,"U6",3,0.20,label="HB_BOOT cap-driver")
-route("C604",2,"U6",5,0.20,label="GAN_SW bootstrap return")
-route("U6",4,"R603",1,0.20,label="HO_DRV")
-route("R603",2,"Q601",1,0.20,mid=[(11.35,4.875)],label="Q601 gate after Rg")
-route("U6",10,"R604",1,0.20,label="LO_DRV")
+route("C604",1,"U6",3,0.20,mid=[(6.00,3.70)],label="HB_BOOT cap-driver")
+route("C604",2,"U6",5,0.20,mid=[(7.00,3.70)],label="GAN_SW bootstrap return")
+route("U6",4,"R603",1,0.20,mid=[(6.50,2.10)],label="HO_DRV")
+route("R603",2,"Q601",1,0.20,mid=[(10.90,4.875)],label="Q601 gate after Rg")
+route("U6",10,"R604",1,0.20,mid=[(4.20,7.40),(4.20,10.025)],label="LO_DRV")
 route("R604",2,"Q602",1,0.20,mid=[(8.80,6.125)],label="Q602 gate after Rg")
 
 # UCC27282 switch reference is low-current; the MOSFET commutation copper
@@ -313,8 +319,8 @@ qsw=getpad("Q601",2)
 qlo=getpad("Q602",3)
 l1=getpad("L601",1)
 p_qsw=mmpt(qsw.GetPosition()); p_qlo=mmpt(qlo.GetPosition()); p_l1=mmpt(l1.GetPosition())
-junction=(11.20,p_qsw[1])
-lower=(11.20,p_qlo[1])
+junction=(12.00,p_qsw[1])
+lower=(12.00,p_qlo[1])
 add_segment(qsw,p_qsw,junction,0.20)
 add_segment(qsw,junction,lower,0.80)
 add_segment(qsw,lower,p_qlo,0.20)
@@ -371,7 +377,7 @@ dru.write_text("""(version 1)
   (condition "((A.Reference == 'Q601' && B.Reference == 'Q601') || (A.Reference == 'Q602' && B.Reference == 'Q602'))")
   (constraint clearance (min 0.10mm)))
 (rule "CSD17381F4 local fanout clearance"
-  (condition "((A.Reference == 'Q601' && (B.Net == 'Q601_G' || B.Net == 'GAN_SW' || B.Net == '12V_PROT')) || (B.Reference == 'Q601' && (A.Net == 'Q601_G' || A.Net == 'GAN_SW' || A.Net == '12V_PROT')) || (A.Reference == 'Q602' && (B.Net == 'Q602_G' || B.Net == 'GAN_SW' || B.Net == 'GND')) || (B.Reference == 'Q602' && (A.Net == 'Q602_G' || A.Net == 'GAN_SW' || A.Net == 'GND')))")
+  (condition "((A.memberOfFootprint('Q601') && (B.Net == 'Q601_G' || B.Net == 'GAN_SW' || B.Net == '12V_PROT')) || (B.memberOfFootprint('Q601') && (A.Net == 'Q601_G' || A.Net == 'GAN_SW' || A.Net == '12V_PROT')) || (A.memberOfFootprint('Q602') && (B.Net == 'Q602_G' || B.Net == 'GAN_SW' || B.Net == 'GND')) || (B.memberOfFootprint('Q602') && (A.Net == 'Q602_G' || A.Net == 'GAN_SW' || A.Net == 'GND')))")
   (constraint clearance (min 0.10mm)))
 """,encoding="utf-8")
 print("P1 rule: unconnected_items=ignore only; routed copper/clearance/courtyard remain live")
