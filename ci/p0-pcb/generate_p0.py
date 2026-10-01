@@ -61,7 +61,7 @@ def courtyard_bbox(fpname):
             j=text.find(needle,pos)
             if j<0: break
             sb=block(text,j); pos=j+len(sb)
-            if '(layer "F.CrtYd")' not in sb:
+            if '(layer "F.CrtYd")' not in sb and '(layer F.CrtYd)' not in sb:
                 continue
             if kind=="fp_circle":
                 cm=re.search(r'\(center\s+([-0-9.]+)\s+([-0-9.]+)',sb)
@@ -93,8 +93,9 @@ def rotated_bbox(bb, rot):
     if rot==0:
         return bb
     if rot==90:
-        # KiCad +90: local (x,y) -> (-y,+x)
-        return (-ymax, xmin, -ymin, xmax)
+        # KiCad board coordinates use +Y downward; +90 rotates local
+        # (x,y) -> (+y,-x).
+        return (ymin, -xmax, ymax, -xmin)
     raise RuntimeError(f"unsupported P0 rotation {rot}")
 
 tree=ET.parse(NET)
