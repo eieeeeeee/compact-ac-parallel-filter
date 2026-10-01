@@ -110,13 +110,15 @@ def actual_env(fpname):
     fp.SetPosition(pcbnew.VECTOR2I_MM(0, 0))
     fp.SetOrientationDegrees(0)
     bb = fp.GetBoundingBox(False, False)
+    x0 = pcbnew.ToMM(bb.GetX())
+    y0 = pcbnew.ToMM(bb.GetY())
     w = pcbnew.ToMM(bb.GetWidth())
     h = pcbnew.ToMM(bb.GetHeight())
     # Ensure tiny/bare footprints still reserve a manufacturable envelope.
     w = max(w, 1.0)
     h = max(h, 1.0)
-    _metric_cache[fpname] = (w, h)
-    return w, h
+    _metric_cache[fpname] = (x0, y0, w, h)
+    return x0, y0, w, h
 
 groups = {k:[] for k in sheet_order}
 for ref,c in comps.items():
@@ -128,10 +130,10 @@ for ref,c in comps.items():
     if not fpname:
         raise RuntimeError(f"{ref} has no footprint")
     k = sheetkey(c["sheet"])
-    w,h = actual_env(fpname)
-    groups[k].append((ref, c, fpname, w, h))
+    bx,by,w,h = actual_env(fpname)
+    groups[k].append((ref, c, fpname, bx, by, w, h))
 for k in groups:
-    groups[k].sort(key=lambda z: (-(z[3]*z[4]), -max(z[3],z[4]), z[0]))
+    groups[k].sort(key=lambda z: (-(z[5]*z[6]), -max(z[5],z[6]), z[0]))
 
 # MaxRects-style placement on the front side.  Items are processed in functional
 # sheet order and large-first within each block.  0.22 mm pack gap + 0.7 mm edge margin.
@@ -172,19 +174,21 @@ def split_free(used):
     free_rects=pruned
 
 for k in sheet_order:
-    for ref,c,fpname,w,h in groups[k]:
+    for ref,c,fpname,bx,by,w,h in groups[k]:
         choices=[]
         for i,(fx,fy,fw,fh) in enumerate(free_rects):
-            for rot,(rw,rh) in [(0,(w,h)),(90,(h,w))]:
-                pw,ph=rw+gap,rh+gap
-                if pw <= fw+1e-9 and ph <= fh+1e-9:
-                    short=min(fw-pw,fh-ph)
-                    long=max(fw-pw,fh-ph)
-                    choices.append((short,long,fy,fx,i,rot,rw,rh,pw,ph))
+            pw,ph=w+gap,h+gap
+            if pw <= fw+1e-9 and ph <= fh+1e-9:
+                short=min(fw-pw,fh-ph)
+                long=max(fw-pw,fh-ph)
+                choices.append((short,long,fy,fx,i,pw,ph))
         if not choices:
             raise RuntimeError(f"MaxRects placement overflow at {ref}; free={len(free_rects)}")
-        _,_,fy,fx,i,rot,rw,rh,pw,ph=min(choices)
-        placements[ref]=(fx+rw/2, fy+rh/2, rot)
+        _,_,fy,fx,i,pw,ph=min(choices)
+        # Place the actual bounding-box top-left at the reserved rectangle + half gap.
+        ox = fx + gap/2 - bx
+        oy = fy + gap/2 - by
+        placements[ref]=(ox, oy, 0)
         split_free((fx,fy,pw,ph))
 
 # Create and place footprints, assign nets.
