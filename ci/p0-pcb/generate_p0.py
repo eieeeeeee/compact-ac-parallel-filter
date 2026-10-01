@@ -194,3 +194,17 @@ print(f"P0 board saved: {OUT}")
 print(f"placed={len(placements)} skipped_DNP={sorted(SKIP)} size=50x40mm")
 for k in zones:
     print(k, len(groups[k]))
+
+
+# Placement-stage project rule: routing is intentionally not present yet.
+# Ignore only unconnected-items for P0; all geometric/clearance/courtyard rules remain active.
+import json
+pro = BASE / "RC18_RevB_SI.kicad_pro"
+pdata = json.loads(pro.read_text(encoding="utf-8"))
+boardcfg = pdata.setdefault("board", {})
+dsgn = boardcfg.setdefault("design_settings", {})
+sev = dsgn.setdefault("rule_severities", {})
+sev["unconnected_items"] = "ignore"
+pdata["meta"]["filename"] = "RC18_RevB_SI.kicad_pro"
+pro.write_text(json.dumps(pdata, indent=2) + "\n", encoding="utf-8")
+print("P0 project rule: unconnected_items=ignore (placement gate only)")
