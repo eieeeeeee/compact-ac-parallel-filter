@@ -87,20 +87,15 @@ for name in sorted(set(nets)):
     board.Add(ni)
     netobjs[name] = ni
 
-# zone allocations in millimeters inside a 50 x 40 board.
-zones = {
-    "01_POWER_INPUT": (1.2, 1.2, 12.0, 11.5),
-    "02_POWER_RAILS": (12.2, 1.2, 23.5, 11.5),
-    "03_MCU_DIGITAL": (23.7, 1.2, 38.2, 15.5),
-    "04_VLINE_ANALOG": (1.2, 11.7, 13.5, 23.5),
-    "05_CURRENT_SENSE_TRIP": (13.7, 15.7, 25.0, 27.0),
-    "06_SI_HALFBRIDGE": (25.2, 15.7, 39.0, 28.8),
-    "07_RECONSTRUCTION_LC": (1.2, 27.2, 25.0, 38.8),
-    "08_INJECTION_DISCONNECT": (25.2, 29.0, 39.0, 38.8),
-    "09_MONITOR_THERMAL_UI": (39.2, 1.2, 48.8, 38.8),
-}
+# Functional sheet order; placement is globally shelf-packed inside the
+# 50 x 40 mm board so unused area can be shared between blocks.
+sheet_order = [
+    "01_POWER_INPUT","02_POWER_RAILS","03_MCU_DIGITAL",
+    "04_VLINE_ANALOG","05_CURRENT_SENSE_TRIP","06_SI_HALFBRIDGE",
+    "07_RECONSTRUCTION_LC","08_INJECTION_DISCONNECT","09_MONITOR_THERMAL_UI"
+]
 def sheetkey(s):
-    for k in zones:
+    for k in sheet_order:
         if k in s: return k
     return "09_MONITOR_THERMAL_UI"
 
@@ -123,8 +118,7 @@ def env(fpname, ref):
     if "rect_l7" in s: return (8.0, 4.0)
     return (2.8, 2.2)
 
-# Group components and sort large-first to reduce overlap.
-groups = {k:[] for k in zones}
+groups = {k:[] for k in sheet_order}
 for ref,c in comps.items():
     if ref.startswith("#") or ref in SKIP:
         continue
@@ -139,19 +133,25 @@ for ref,c in comps.items():
 for k in groups:
     groups[k].sort()
 
-# Shelf pack within each functional zone.
+# Dense global shelf placement. Components remain ordered by functional sheet,
+# with a small inter-block gap but no hard partition that wastes board area.
 placements = {}
-for k, items in groups.items():
-    x0,y0,x1,y1 = zones[k]
-    x=x0; y=y0; rowh=0
-    for _,ref,c,fpname,w,h in items:
-        if x + w > x1:
-            x=x0; y += rowh + 0.35; rowh=0
-        if y + h > y1 + 1e-6:
-            raise RuntimeError(f"zone overflow {k} at {ref}: y={y:.2f}, h={h:.2f}, ymax={y1:.2f}")
+x0,y0,xmax,ymax = 1.0,1.0,49.0,39.0
+x,y,rowh = x0,y0,0.0
+for k in sheet_order:
+    first=True
+    for _,ref,c,fpname,w,h in groups[k]:
+        if x + w > xmax:
+            x=x0; y += rowh + 0.30; rowh=0.0
+        if y + h > ymax + 1e-6:
+            raise RuntimeError(f"global placement overflow at {ref}: y={y:.2f}, h={h:.2f}, ymax={ymax:.2f}")
         placements[ref] = (x+w/2, y+h/2, 0)
-        x += w + 0.35
+        x += w + 0.28
         rowh=max(rowh,h)
+        first=False
+    x += 0.45  # visual/functional break between sheets
+    if x > xmax - 2.0:
+        x=x0; y += rowh + 0.30; rowh=0.0
 
 # Create and place footprints, assign nets.
 for ref,c in comps.items():
