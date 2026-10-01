@@ -31,8 +31,8 @@ def load_fp(fpname):
         raise RuntimeError(f"failed footprint load: {fpname} from {libpath}")
     return fp
 
-def make_pogo5():
-    fp = pcbnew.FOOTPRINT()
+def make_pogo5(board):
+    fp = pcbnew.FOOTPRINT(board)
     fp.SetReference("J201")
     fp.SetValue("SWD POGO 5")
     # 1.27 mm pitch, five round SMD contact pads, total length 5.08 mm.
@@ -193,7 +193,7 @@ for ref,c in comps.items():
     if ref.startswith("#") or ref in SKIP:
         continue
     if ref == "J201":
-        fp=make_pogo5()
+        fp=make_pogo5(board)
     else:
         fp=load_fp(c["footprint"])
     fp.SetReference(ref)
