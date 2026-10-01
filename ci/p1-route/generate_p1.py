@@ -135,8 +135,8 @@ fixed={
     "U6":   (6.0,  6.0,  90),
     "Q601": (10.2, 4.7, 180),
     "Q602": (10.2, 6.3,   0),
-    "C604": (5.7,  3.2,   0),
-    "R603": (12.6, 2.8, 180),
+    "C604": (5.7,  3.0,   0),
+    "R603": (12.3, 2.4, 180),
     "R604": (8.5,  9.2, 270),
 
     # Three-stage reconstruction LC
@@ -208,16 +208,19 @@ for ref,(ox,oy,rot) in fixed.items():
         raise RuntimeError(f"fixed ref missing: {ref}")
     _,c,fpname,bb,w,h,sk=item_by_ref[ref]
     rbb=rotated_bbox(bb,rot)
-    gx0,gy0,gx1,gy1=ox+rbb[0],oy+rbb[1],ox+rbb[2],oy+rbb[3]
+    raw=(ox+rbb[0],oy+rbb[1],ox+rbb[2],oy+rbb[3])
+    # Fixed priority parts may sit close by design, but their actual courtyards
+    # must never overlap.  The larger GUARD is used only to keep auto-packed
+    # non-priority parts away from the frozen block.
+    for oref,oraw in used_fixed:
+        if not (raw[0]>=oraw[2] or raw[2]<=oraw[0] or raw[1]>=oraw[3] or raw[3]<=oraw[1]):
+            raise RuntimeError(f"fixed courtyard overlap: {ref} with {oref}")
+    used_fixed.append((ref,raw))
+    gx0,gy0,gx1,gy1=raw
     gx0-=GUARD/2; gy0-=GUARD/2; gx1+=GUARD/2; gy1+=GUARD/2
     if gx0<ORIGIN_X-1e-9 or gy0<ORIGIN_Y-1e-9 or gx1>ORIGIN_X+BIN_W+1e-9 or gy1>ORIGIN_Y+BIN_H+1e-9:
         raise RuntimeError(f"fixed {ref} outside inner board: {(gx0,gy0,gx1,gy1)}")
-    used=(gx0-ORIGIN_X,gy0-ORIGIN_Y,gx1-gx0,gy1-gy0)
-    for oref,ou in used_fixed:
-        if intersects(used,ou):
-            raise RuntimeError(f"fixed placement overlap: {ref} with {oref}")
-    used_fixed.append((ref,used))
-    subtract_used(used)
+    subtract_used((gx0-ORIGIN_X,gy0-ORIGIN_Y,gx1-gx0,gy1-gy0))
     placements[ref]=(ox,oy,rot)
 
 # Pack all non-priority parts around the frozen blocks.
