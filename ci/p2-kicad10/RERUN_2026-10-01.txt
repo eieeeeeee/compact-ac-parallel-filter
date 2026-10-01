@@ -1,0 +1,2 @@
+Re-run official KiCad 10 ERC for RC18 Rev.B-SI P2 after Base64 chunk reconstruction fix.
+Target package SHA256: b3ca981044bb8607d98d2648eb9bfe2903048b8b03bf23c30fff45204a6adf51
