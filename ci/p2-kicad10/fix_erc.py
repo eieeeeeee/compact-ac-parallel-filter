@@ -169,3 +169,22 @@ project = {
     encoding="utf-8"
 )
 print("created RC18_RevB_SI.kicad_pro")
+
+
+# With a same-name project now present, use project-relative library URIs.
+kprj = "$" + "{KIPRJMOD}"
+(base / "sym-lib-table").write_text(
+    '(sym_lib_table\n'
+    '  (version 7)\n'
+    f'  (lib (name "RC18_Custom")(type "Legacy")(uri "{kprj}/RC18_Custom.lib")(options "")(descr "RC18 local legacy symbols"))\n'
+    ')\n',
+    encoding="utf-8"
+)
+(base / "fp-lib-table").write_text(
+    '(fp_lib_table\n'
+    '  (version 7)\n'
+    f'  (lib (name "RC18_Custom")(type "KiCad")(uri "{kprj}/RC18_Custom.pretty")(options "")(descr "RC18 local footprints"))\n'
+    ')\n',
+    encoding="utf-8"
+)
+print("rewrote library tables to project-relative KIPRJMOD URIs")
