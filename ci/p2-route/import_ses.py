@@ -1,0 +1,28 @@
+#!/usr/bin/env python3
+import sys, json
+from pathlib import Path
+import pcbnew
+
+pcb = Path(sys.argv[1]).resolve()
+ses = Path(sys.argv[2]).resolve()
+out = Path(sys.argv[3]).resolve()
+pro = Path(sys.argv[4]).resolve()
+
+board = pcbnew.LoadBoard(str(pcb))
+before = len(list(board.GetTracks()))
+ok = pcbnew.ImportSpecctraSES(board, str(ses))
+if not ok:
+    raise SystemExit("ImportSpecctraSES failed")
+after = len(list(board.GetTracks()))
+pcbnew.SaveBoard(str(out), board)
+
+pdata = json.loads(pro.read_text(encoding="utf-8"))
+ds = pdata.setdefault("board", {}).setdefault("design_settings", {})
+sev = ds.setdefault("rule_severities", {})
+sev["unconnected_items"] = "error"
+pdata["meta"]["filename"] = pro.name
+pro.write_text(json.dumps(pdata, indent=2) + "\n", encoding="utf-8")
+
+print(f"tracks_before={before} tracks_after={after} added={after-before}")
+print("unconnected_items=error")
+print(f"out={out}")
