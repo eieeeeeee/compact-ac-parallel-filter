@@ -1,0 +1,77 @@
+name: KiCad 10 RC18 Rev.B-SI P1 Priority Route
+
+on:
+  push:
+    branches:
+      - rc18-revb-si-p1-priority-route
+    paths:
+      - 'ci/p1-route/**'
+      - 'ci/p0-pcb/**'
+      - 'ci/p2-kicad10/**'
+      - '.github/workflows/kicad10-rc18-revb-si-p1-route.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  p1:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reconstruct ERC0 project
+        run: |
+          set -euxo pipefail
+          mkdir -p ci-reports hardware/rc18-revb-si-p1
+          cat ci/p2-kicad10/p2-package.b64.part* | base64 -d > /tmp/p2.zip
+          echo "b3ca981044bb8607d98d2648eb9bfe2903048b8b03bf23c30fff45204a6adf51  /tmp/p2.zip" | sha256sum -c -
+          unzip -q -o /tmp/p2.zip -d hardware/rc18-revb-si-p1
+          python ci/p2-kicad10/fix_erc.py hardware/rc18-revb-si-p1/P2_KiCad10_ERC0_Footprint
+          chmod -R a+rwX ci-reports hardware/rc18-revb-si-p1/P2_KiCad10_ERC0_Footprint
+
+      - name: Pull official KiCad 10.0.6 image
+        run: docker pull kicad/kicad:10.0.6
+
+      - name: Build P1 priority-routed PCB
+        id: build
+        continue-on-error: true
+        run: |
+          set -euxo pipefail
+          docker run --rm             -v "${{ github.workspace }}:/work"             -w /work/hardware/rc18-revb-si-p1/P2_KiCad10_ERC0_Footprint             kicad/kicad:10.0.6             bash -lc '
+              kicad-cli --version
+              python3 -c "import pcbnew; print(pcbnew.GetBuildVersion())"
+              kicad-cli sch export netlist --format kicadxml                 -o /work/ci-reports/RC18_RevB_SI.xml RC18_RevB_SI.kicad_sch
+              python3 /work/ci/p1-route/generate_p1.py                 /work/hardware/rc18-revb-si-p1/P2_KiCad10_ERC0_Footprint                 /work/ci-reports/RC18_RevB_SI.xml                 /work/hardware/rc18-revb-si-p1/P2_KiCad10_ERC0_Footprint/RC18_RevB_SI.kicad_pcb
+            '
+
+      - name: Run P1 routed-copper DRC
+        id: drc
+        continue-on-error: true
+        run: |
+          docker run --rm             -v "${{ github.workspace }}:/work"             -w /work/hardware/rc18-revb-si-p1/P2_KiCad10_ERC0_Footprint             kicad/kicad:10.0.6             kicad-cli pcb drc               --severity-all               --exit-code-violations               --output /work/ci-reports/RC18_P1_DRC.rpt               RC18_RevB_SI.kicad_pcb
+
+      - name: Print P1 DRC
+        if: always()
+        run: |
+          echo "BUILD outcome: ${{ steps.build.outcome }}"
+          echo "DRC outcome: ${{ steps.drc.outcome }}"
+          test -f ci-reports/RC18_P1_DRC.rpt && cat ci-reports/RC18_P1_DRC.rpt || true
+
+      - name: Upload P1 artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rc18-revb-si-p1-priority-route
+          path: |
+            ci-reports/
+            hardware/rc18-revb-si-p1/P2_KiCad10_ERC0_Footprint/
+          if-no-files-found: warn
+
+      - name: Enforce P1 build and DRC pass
+        if: always()
+        run: |
+          test "${{ steps.build.outcome }}" = "success"
+          test "${{ steps.drc.outcome }}" = "success"
