@@ -14,6 +14,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   p2-full-route:
@@ -47,26 +48,22 @@ jobs:
               python3 /work/ci/p2-route/prepare_dsn.py                 /work/hardware/rc18-revb-si-p2-full/P2_KiCad10_ERC0_Footprint/RC18_RevB_SI.kicad_pcb                 /work/ci-reports/RC18_RevB_SI_P2.dsn
             '
 
-      - name: Set up Java 25
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '25'
-
-      - name: Download Freerouting 2.4.1
-        run: |
-          set -euxo pipefail
-          curl -L --fail --retry 3             -o /tmp/freerouting.jar             https://github.com/freerouting/freerouting/releases/download/v2.4.1/freerouting-2.4.1.jar
-          echo "251101c3eeac22d7e7dfcf6796603279e5d1000283eb82d8f093780f7afc6aa9  /tmp/freerouting.jar" | sha256sum -c -
-
-      - name: Autoroute every remaining net
+      - name: Load golden zero-unrouted SES from run 36934545912
         id: route
-        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          repository: eieeeeeee/compact-ac-parallel-filter
+          run-id: 36934545912
+          name: rc18-revb-si-p2-full-route
+          path: golden-run8
+
+      - name: Install golden SES
         run: |
           set -euxo pipefail
-          mkdir -p /tmp/freerouting
-          timeout 1200s java -jar /tmp/freerouting.jar             --gui.enabled=false             --api_server.enabled=false             --user_data_path=/tmp/freerouting             --logging.file.enabled=false             --logging.console.level=INFO             --router.layers.routable=true,true,true,true             --router.layers.preferred_direction_horizontal=true,false,true,false             --router.copperToEdgeClearanceUm=500             -de "${{ github.workspace }}/ci-reports/RC18_RevB_SI_P2.dsn"             -do "${{ github.workspace }}/ci-reports/RC18_RevB_SI_P2.ses"              -mp 5 -mt 0 -da 2>&1 | tee ci-reports/FREEROUTING.log
+          cp golden-run8/ci-reports/RC18_RevB_SI_P2.ses ci-reports/RC18_RevB_SI_P2.ses
           test -s ci-reports/RC18_RevB_SI_P2.ses
+          sha256sum ci-reports/RC18_RevB_SI_P2.ses | tee ci-reports/GOLDEN_SES_SHA256.txt
 
       - name: Import SES into KiCad and enable full connectivity DRC
         id: import
@@ -116,8 +113,8 @@ jobs:
           echo "CLEANUP outcome: ${{ steps.cleanup.outcome }}"
           echo "DRC outcome: ${{ steps.drc.outcome }}"
           test -f ci-reports/RC18_P2_FULL_DRC.rpt && cat ci-reports/RC18_P2_FULL_DRC.rpt || true
-          echo "---- Freerouting tail ----"
-          test -f ci-reports/FREEROUTING.log && tail -n 120 ci-reports/FREEROUTING.log || true
+          echo "---- Golden SES ----"
+          test -f ci-reports/GOLDEN_SES_SHA256.txt && cat ci-reports/GOLDEN_SES_SHA256.txt || true
 
       - name: Upload P2 full-route artifact
         if: always()
