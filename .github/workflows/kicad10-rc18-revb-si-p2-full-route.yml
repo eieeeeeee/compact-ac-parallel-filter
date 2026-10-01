@@ -65,7 +65,7 @@ jobs:
         run: |
           set -euxo pipefail
           mkdir -p /tmp/freerouting
-          timeout 1200s java -jar /tmp/freerouting.jar             --gui.enabled=false             --api_server.enabled=false             --user_data_path=/tmp/freerouting             --logging.file.enabled=false             --logging.console.level=INFO             --router.layers.routable=true,true,true,true             --router.layers.preferred_direction_horizontal=true,false,true,false             --router.copperToEdgeClearanceUm=250             -de "${{ github.workspace }}/ci-reports/RC18_RevB_SI_P2.dsn"             -do "${{ github.workspace }}/ci-reports/RC18_RevB_SI_P2.ses"              -mp 80 -mt 2 -da 2>&1 | tee ci-reports/FREEROUTING.log
+          timeout 1200s java -jar /tmp/freerouting.jar             --gui.enabled=false             --api_server.enabled=false             --user_data_path=/tmp/freerouting             --logging.file.enabled=false             --logging.console.level=INFO             --router.layers.routable=true,true,true,true             --router.layers.preferred_direction_horizontal=true,false,true,false             --router.copperToEdgeClearanceUm=250             -de "${{ github.workspace }}/ci-reports/RC18_RevB_SI_P2.dsn"             -do "${{ github.workspace }}/ci-reports/RC18_RevB_SI_P2.ses"              -mp 20 -mt 0 -da 2>&1 | tee ci-reports/FREEROUTING.log
           test -s ci-reports/RC18_RevB_SI_P2.ses
 
       - name: Import SES into KiCad and enable full connectivity DRC
