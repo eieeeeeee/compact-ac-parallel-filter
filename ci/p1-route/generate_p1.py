@@ -135,9 +135,9 @@ fixed={
     "U6":   (6.0,  6.0, 270),
     "Q601": (10.2, 4.7, 180),
     "Q602": (10.2, 6.3,   0),
-    "C604": (5.7,  3.0,   0),
-    "R603": (10.0, 2.1,   0),
-    "R604": (8.5,  9.2,  90),
+    "C604": (6.5,  2.5,   0),
+    "R603": (9.8,  2.3,   0),
+    "R604": (9.8,  9.0,   0),
 
     # Three-stage reconstruction LC
     "L601": (16.0, 4.6,   0),
@@ -304,17 +304,30 @@ def route(a_ref,a_pin,b_ref,b_pin,width,mid=None,layer=pcbnew.F_Cu,label=""):
     route_log.append((label or pa.GetNetname(),a_ref,a_pin,b_ref,b_pin,width,len(pts)-1))
 
 # --- P1 priority routing ---
-# Bootstrap and gate drive.  Keep these narrow at the driver pins.
-route("C604",1,"U6",3,0.20,mid=[(6.00,3.70)],label="HB_BOOT cap-driver")
-route("C604",2,"U6",5,0.20,mid=[(7.00,3.70)],label="GAN_SW bootstrap return")
-route("U6",4,"R603",1,0.20,mid=[(6.50,2.10)],label="HO_DRV")
-route("R603",2,"Q601",1,0.20,mid=[(10.90,4.875)],label="Q601 gate after Rg")
-route("U6",10,"R604",1,0.20,mid=[(4.20,7.40),(4.20,10.025)],label="LO_DRV")
-route("R604",2,"Q602",1,0.20,mid=[(8.80,6.125)],label="Q602 gate after Rg")
+# Bootstrap: C604 sits centered above U6 so HB and HS/SW drop straight to
+# pins 3 and 5 while HO exits through the corridor between the two capacitor pads.
+route("C604",1,"U6",3,0.20,mid=[(5.725,3.30),(6.00,3.30)],label="HB_BOOT cap-driver")
+route("C604",2,"U6",5,0.20,mid=[(7.275,3.30),(7.00,3.30)],label="GAN_SW bootstrap return")
 
-# UCC27282 switch reference is low-current; the MOSFET commutation copper
-# necks down only at the 0.35-mm YJC pads, then immediately widens.
-route("U6",5,"Q601",2,0.20,label="GAN_SW driver sense")
+# High-side gate: leave pin 4 upward through the C604 pad gap, travel above C604,
+# then enter Q601 gate from below (opposite the source pad).
+route("U6",4,"R603",1,0.20,mid=[(6.50,1.40),(8.975,1.40)],label="HO_DRV")
+route("R603",2,"Q601",1,0.20,
+      mid=[(9.30,2.30),(9.30,5.30),(10.525,5.30)],
+      label="Q601 gate after Rg")
+
+# Low-side gate: leave pin 10 downward, then approach Q602 gate from above
+# (opposite its source pad).  The two gate routes are separated by 0.45 mm.
+route("U6",10,"R604",1,0.20,mid=[(5.00,10.00),(8.975,10.00)],label="LO_DRV")
+route("R604",2,"Q602",1,0.20,
+      mid=[(9.30,9.00),(9.30,5.75),(9.875,5.75)],
+      label="Q602 gate after Rg")
+
+# UCC27282 switch reference is low-current.  Route above the MOSFET and enter
+# Q601 source from the right so the trace never passes the drain pad.
+route("U6",5,"Q601",2,0.20,
+      mid=[(7.00,3.80),(10.90,3.80),(10.90,4.525)],
+      label="GAN_SW driver sense")
 qsw=getpad("Q601",2)
 qlo=getpad("Q602",3)
 l1=getpad("L601",1)
