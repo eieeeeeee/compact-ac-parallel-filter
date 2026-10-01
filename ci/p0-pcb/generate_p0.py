@@ -31,21 +31,13 @@ def load_fp(fpname):
         raise RuntimeError(f"failed footprint load: {fpname} from {libpath}")
     return fp
 
-def make_pogo5(board):
-    fp = pcbnew.FOOTPRINT(board)
-    fp.SetReference("J201")
-    fp.SetValue("SWD POGO 5")
-    # 1.27 mm pitch, five round SMD contact pads, total length 5.08 mm.
-    for i in range(5):
-        p = pcbnew.PAD(fp)
-        p.SetNumber(str(i+1))
-        p.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
-        p.SetShape(pcbnew.PAD_SHAPE_CIRCLE)
-        p.SetSize(pcbnew.VECTOR2I_MM(1.4, 1.4))
-        p.SetPosition(pcbnew.VECTOR2I_MM((i-2)*1.27, 0))
-        p.SetLayerSet(pcbnew.LSET([pcbnew.F_Cu, pcbnew.F_Paste, pcbnew.F_Mask]))
-        fp.Add(p)
-    return fp
+# J201 is loaded from a project-local .kicad_mod to avoid SWIG constructor differences.
+
+# Install P0-only J201 footprint into the project-local footprint library.
+import shutil
+j201_src = Path("/work/ci/p0-pcb/footprints/J201_POGO5.kicad_mod")
+j201_dst = BASE / "RC18_Custom.pretty" / "J201_POGO5.kicad_mod"
+shutil.copy2(j201_src, j201_dst)
 
 tree = ET.parse(NET)
 root = tree.getroot()
@@ -193,7 +185,7 @@ for ref,c in comps.items():
     if ref.startswith("#") or ref in SKIP:
         continue
     if ref == "J201":
-        fp=make_pogo5(board)
+        fp=load_fp("RC18_Custom:J201_POGO5")
     else:
         fp=load_fp(c["footprint"])
     fp.SetReference(ref)
