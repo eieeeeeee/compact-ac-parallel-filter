@@ -130,3 +130,42 @@ absbase = base.resolve().as_posix()
     encoding="utf-8"
 )
 print("rewrote sym-lib-table and fp-lib-table with absolute paths")
+
+
+# Create a same-name KiCad project so kicad-cli loads project-local library tables.
+import json
+project = {
+    "erc": {
+        "erc_exclusions": [],
+        "meta": {"version": 0},
+        "rule_severities": {
+            "footprint_filter": "ignore",
+            "footprint_link_issues": "warning",
+            "four_way_junction": "ignore",
+            "isolated_pin_label": "warning",
+            "label_dangling": "error",
+            "lib_symbol_issues": "warning",
+            "simulation_model_issue": "ignore",
+            "single_global_label": "ignore"
+        }
+    },
+    "libraries": {
+        "pinned_footprint_libs": [],
+        "pinned_symbol_libs": []
+    },
+    "meta": {
+        "filename": "RC18_RevB_SI.kicad_pro",
+        "version": 3
+    },
+    "schematic": {
+        "legacy_lib_dir": "",
+        "legacy_lib_list": [],
+        "meta": {"version": 1}
+    },
+    "sheets": []
+}
+(base / "RC18_RevB_SI.kicad_pro").write_text(
+    json.dumps(project, indent=2) + "\n",
+    encoding="utf-8"
+)
+print("created RC18_RevB_SI.kicad_pro")
