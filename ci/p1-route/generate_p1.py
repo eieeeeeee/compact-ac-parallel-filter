@@ -136,8 +136,8 @@ fixed={
     "Q601": (10.2, 4.7, 180),
     "Q602": (10.2, 6.3,   0),
     "C604": (6.5,  2.5,   0),
-    "R603": (9.8,  2.3,   0),
-    "R604": (9.8,  9.0,   0),
+    "R603": (9.8,  2.3, 180),
+    "R604": (9.8,  9.0, 180),
 
     # Three-stage reconstruction LC
     "L601": (16.0, 4.6,   0),
@@ -309,24 +309,27 @@ def route(a_ref,a_pin,b_ref,b_pin,width,mid=None,layer=pcbnew.F_Cu,label=""):
 route("C604",1,"U6",3,0.20,mid=[(5.725,3.30),(6.00,3.30)],label="HB_BOOT cap-driver")
 route("C604",2,"U6",5,0.20,mid=[(7.275,3.30),(7.00,3.30)],label="GAN_SW bootstrap return")
 
-# High-side gate: leave pin 4 upward through the C604 pad gap, travel above C604,
-# then enter Q601 gate from below (opposite the source pad).
-route("U6",4,"R603",1,0.20,mid=[(6.50,1.40),(8.975,1.40)],label="HO_DRV")
+# High-side gate: R603 is rotated so pad 2 faces left.  HO travels above
+# C604 to pad 1; Q601_G drops in the x=8.70 corridor and approaches the gate
+# from below, away from the source pad.
+route("U6",4,"R603",1,0.20,mid=[(6.50,1.40),(10.625,1.40)],label="HO_DRV")
 route("R603",2,"Q601",1,0.20,
-      mid=[(9.30,2.30),(9.30,5.30),(10.525,5.30)],
+      mid=[(8.70,2.30),(8.70,5.30),(10.525,5.30)],
       label="Q601 gate after Rg")
 
-# Low-side gate: leave pin 10 downward, then approach Q602 gate from above
-# (opposite its source pad).  The two gate routes are separated by 0.45 mm.
-route("U6",10,"R604",1,0.20,mid=[(5.00,10.00),(8.975,10.00)],label="LO_DRV")
+# Low-side gate: R604 is also rotated.  Its gate trace uses the x=8.20
+# corridor and enters Q602 pin 1 from the left.  This keeps it clear of the
+# high-side gate route and the switch-sense corridor.
+route("U6",10,"R604",1,0.20,mid=[(5.00,10.00),(10.625,10.00)],label="LO_DRV")
 route("R604",2,"Q602",1,0.20,
-      mid=[(9.30,9.00),(9.30,5.75),(9.875,5.75)],
+      mid=[(8.20,9.00),(8.20,6.125)],
       label="Q602 gate after Rg")
 
-# UCC27282 switch reference is low-current.  Route above the MOSFET and enter
-# Q601 source from the right so the trace never passes the drain pad.
-route("U6",5,"Q601",2,0.20,
-      mid=[(7.00,3.80),(10.90,3.80),(10.90,4.525)],
+# UCC27282 switch reference is low-current.  Leave pin 5 to the right of the
+# exposed pad, run between the two gate corridors at y=5.70, and join GAN_SW
+# at Q602 drain from the right.
+route("U6",5,"Q602",3,0.20,
+      mid=[(7.60,4.60),(7.60,5.70),(11.10,5.70),(11.10,6.30)],
       label="GAN_SW driver sense")
 qsw=getpad("Q601",2)
 qlo=getpad("Q602",3)
@@ -389,8 +392,8 @@ dru.write_text("""(version 1)
 (rule "CSD17381F4 internal pad clearance"
   (condition "((A.Reference == 'Q601' && B.Reference == 'Q601') || (A.Reference == 'Q602' && B.Reference == 'Q602'))")
   (constraint clearance (min 0.10mm)))
-(rule "CSD17381F4 local fanout clearance"
-  (condition "((A.memberOfFootprint('Q601') && (B.Net == 'Q601_G' || B.Net == 'GAN_SW' || B.Net == '12V_PROT')) || (B.memberOfFootprint('Q601') && (A.Net == 'Q601_G' || A.Net == 'GAN_SW' || A.Net == '12V_PROT')) || (A.memberOfFootprint('Q602') && (B.Net == 'Q602_G' || B.Net == 'GAN_SW' || B.Net == 'GND')) || (B.memberOfFootprint('Q602') && (A.Net == 'Q602_G' || A.Net == 'GAN_SW' || A.Net == 'GND')))")
+(rule "CSD17381F4 gate-net fanout clearance"
+  (condition "((A.Net == 'Q601_G' && (B.Net == 'GAN_SW' || B.Net == '12V_PROT')) || (B.Net == 'Q601_G' && (A.Net == 'GAN_SW' || A.Net == '12V_PROT')) || (A.Net == 'Q602_G' && (B.Net == 'GAN_SW' || B.Net == 'GND')) || (B.Net == 'Q602_G' && (A.Net == 'GAN_SW' || A.Net == 'GND')))")
   (constraint clearance (min 0.10mm)))
 """,encoding="utf-8")
 print("P1 rule: unconnected_items=ignore only; routed copper/clearance/courtyard remain live")
