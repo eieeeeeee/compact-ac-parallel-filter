@@ -132,12 +132,12 @@ def sheetkey(s):
 # Coordinates are footprint origins in mm, rotation degrees.
 fixed={
     # UCC27282 + Si half-bridge + bootstrap/gate resistors
-    "U6":   (6.0,  6.0,  90),
+    "U6":   (6.0,  6.0, 270),
     "Q601": (10.2, 4.7, 180),
     "Q602": (10.2, 6.3,   0),
     "C604": (5.7,  3.0,   0),
     "R603": (12.3, 2.4, 180),
-    "R604": (8.5,  9.2, 270),
+    "R604": (8.5,  9.2,  90),
 
     # Three-stage reconstruction LC
     "L601": (16.0, 4.6,   0),
@@ -298,21 +298,29 @@ def route(a_ref,a_pin,b_ref,b_pin,width,mid=None,layer=pcbnew.F_Cu,label=""):
     route_log.append((label or pa.GetNetname(),a_ref,a_pin,b_ref,b_pin,width,len(pts)-1))
 
 # --- P1 priority routing ---
-# Bootstrap and gate drive.
-route("C604",1,"U6",3,0.25,label="HB_BOOT cap-driver")
-route("C604",2,"U6",5,0.40,label="GAN_SW bootstrap return")
-route("U6",4,"R603",1,0.25,label="HO_DRV")
-route("R603",2,"Q601",1,0.25,label="Q601 gate after Rg")
-route("U6",10,"R604",1,0.25,label="LO_DRV")
-route("R604",2,"Q602",1,0.25,label="Q602 gate after Rg")
+# Bootstrap and gate drive.  Keep these narrow at the driver pins.
+route("C604",1,"U6",3,0.20,label="HB_BOOT cap-driver")
+route("C604",2,"U6",5,0.20,label="GAN_SW bootstrap return")
+route("U6",4,"R603",1,0.20,label="HO_DRV")
+route("R603",2,"Q601",1,0.20,mid=[(11.35,4.875)],label="Q601 gate after Rg")
+route("U6",10,"R604",1,0.20,label="LO_DRV")
+route("R604",2,"Q602",1,0.20,mid=[(8.80,6.125)],label="Q602 gate after Rg")
 
-# High-current local half-bridge/switch node.
-route("U6",5,"Q601",2,0.80,label="GAN_SW driver sense")
-route("Q601",2,"Q602",3,0.80,label="GAN_SW MOSFET commutation")
-route("Q601",2,"L601",1,0.80,label="GAN_SW to reconstruction")
-# Tight driver return; approach low-side source from below to keep away from gate pad.
-route("U6",11,"Q602",2,0.25,mid=[(8.6,7.05),(9.55,7.05)],label="driver GND return")
-route("U6",9,"U6",11,0.25,label="driver GND pin-to-EP")
+# UCC27282 switch reference is low-current; the MOSFET commutation copper
+# necks down only at the 0.35-mm YJC pads, then immediately widens.
+route("U6",5,"Q601",2,0.20,label="GAN_SW driver sense")
+qsw=getpad("Q601",2)
+qlo=getpad("Q602",3)
+l1=getpad("L601",1)
+p_qsw=mmpt(qsw.GetPosition()); p_qlo=mmpt(qlo.GetPosition()); p_l1=mmpt(l1.GetPosition())
+junction=(11.20,p_qsw[1])
+lower=(11.20,p_qlo[1])
+add_segment(qsw,p_qsw,junction,0.20)
+add_segment(qsw,junction,lower,0.80)
+add_segment(qsw,lower,p_qlo,0.20)
+add_segment(qsw,junction,(p_l1[0],junction[1]),0.80)
+add_segment(qsw,(p_l1[0],junction[1]),p_l1,0.80)
+route_log.append(("GAN_SW commutation+LC fanout","Q601","2","Q602/L601","3/1",0.80,5))
 
 # Three-stage LC series path and local shunt/damping returns.
 route("L601",2,"L602",1,0.60,label="F1 series")
@@ -361,6 +369,9 @@ dru=BASE/"RC18_RevB_SI.kicad_dru"
 dru.write_text("""(version 1)
 (rule "CSD17381F4 internal pad clearance"
   (condition "((A.Reference == 'Q601' && B.Reference == 'Q601') || (A.Reference == 'Q602' && B.Reference == 'Q602'))")
+  (constraint clearance (min 0.10mm)))
+(rule "CSD17381F4 local fanout clearance"
+  (condition "((A.Reference == 'Q601' && (B.Net == 'Q601_G' || B.Net == 'GAN_SW' || B.Net == '12V_PROT')) || (B.Reference == 'Q601' && (A.Net == 'Q601_G' || A.Net == 'GAN_SW' || A.Net == '12V_PROT')) || (A.Reference == 'Q602' && (B.Net == 'Q602_G' || B.Net == 'GAN_SW' || B.Net == 'GND')) || (B.Reference == 'Q602' && (A.Net == 'Q602_G' || A.Net == 'GAN_SW' || A.Net == 'GND')))")
   (constraint clearance (min 0.10mm)))
 """,encoding="utf-8")
 print("P1 rule: unconnected_items=ignore only; routed copper/clearance/courtyard remain live")
