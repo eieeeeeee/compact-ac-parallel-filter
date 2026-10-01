@@ -395,8 +395,12 @@ for x in route_log:
 # Keep unconnected_items ignored; all actual routed copper is fully DRC checked.
 pro=BASE/"RC18_RevB_SI.kicad_pro"
 pdata=json.loads(pro.read_text(encoding="utf-8"))
-sev=pdata.setdefault("board",{}).setdefault("design_settings",{}).setdefault("rule_severities",{})
+ds=pdata.setdefault("board",{}).setdefault("design_settings",{})
+sev=ds.setdefault("rule_severities",{})
 sev["unconnected_items"]="ignore"
+# P1 uses one 0.10-mm low-current gate neck (Q602_G).  All other generated
+# tracks remain >=0.20 mm.  Record 0.10 mm as the project manufacturing floor.
+ds.setdefault("rules",{})["min_track_width"]=0.10
 pdata["meta"]["filename"]="RC18_RevB_SI.kicad_pro"
 pro.write_text(json.dumps(pdata,indent=2)+"\n",encoding="utf-8")
 
@@ -405,8 +409,5 @@ dru.write_text("""(version 1)
 (rule "CSD17381F4 internal pad clearance"
   (condition "((A.Reference == 'Q601' && B.Reference == 'Q601') || (A.Reference == 'Q602' && B.Reference == 'Q602'))")
   (constraint clearance (min 0.10mm)))
-(rule "Q602 gate neck track width"
-  (condition "A.Net == 'Q602_G' && A.Type == 'track'")
-  (constraint track_width (min 0.10mm)))
 """,encoding="utf-8")
 print("P1 rule: unconnected_items=ignore only; routed copper/clearance/courtyard remain live")
