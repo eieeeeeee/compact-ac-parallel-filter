@@ -28,6 +28,7 @@ jobs:
           echo "b3ca981044bb8607d98d2648eb9bfe2903048b8b03bf23c30fff45204a6adf51  /tmp/p2.zip" | sha256sum -c -
           unzip -q -o /tmp/p2.zip -d hardware/rc18-revb-si-p2
           find hardware/rc18-revb-si-p2/P2_KiCad10_ERC0_Footprint -maxdepth 2 -type f -print | sort
+          python ci/p2-kicad10/fix_erc.py hardware/rc18-revb-si-p2/P2_KiCad10_ERC0_Footprint
           chmod 777 ci-reports
 
       - name: Pull official KiCad 10.0.6 image
