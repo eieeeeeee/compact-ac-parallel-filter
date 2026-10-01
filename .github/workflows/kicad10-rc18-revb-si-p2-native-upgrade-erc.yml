@@ -1,0 +1,90 @@
+name: KiCad 10 RC18 Rev.B-SI P2 Native Upgrade ERC
+
+on:
+  push:
+    branches:
+      - rc18-revb-si-p2-kicad10-erc
+    paths:
+      - 'ci/p2-legacy/**'
+      - '.github/workflows/kicad10-rc18-revb-si-p2-native-upgrade-erc.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native-upgrade-erc:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reconstruct and verify original Legacy P2
+        run: |
+          set -euxo pipefail
+          rm -rf hardware/rc18-revb-si-p2-native ci-reports-native
+          mkdir -p hardware/rc18-revb-si-p2-native ci-reports-native
+          cat ci/p2-legacy/p2-legacy.b64.part* | base64 -d > /tmp/p2legacy.zip
+          echo "affa2a2483e6c581e18a09235079935ea28a6951631815b7797e765f335b7644  /tmp/p2legacy.zip" | sha256sum -c -
+          unzip -q -o /tmp/p2legacy.zip -d hardware/rc18-revb-si-p2-native
+          chmod -R 777 hardware/rc18-revb-si-p2-native ci-reports-native
+          find hardware/rc18-revb-si-p2-native -maxdepth 2 -type f -print | sort
+
+      - name: Pull official KiCad 10.0.6 image
+        run: docker pull kicad/kicad:10.0.6
+
+      - name: KiCad version and upgrade help
+        run: |
+          docker run --rm kicad/kicad:10.0.6 kicad-cli --version
+          docker run --rm kicad/kicad:10.0.6 kicad-cli sch upgrade --help
+
+      - name: Native-upgrade all Legacy schematics with KiCad 10
+        run: |
+          set -euxo pipefail
+          WD=/work/hardware/rc18-revb-si-p2-native
+          for f in             01_POWER_INPUT.sch             02_POWER_RAILS.sch             03_MCU_DIGITAL.sch             04_VLINE_ANALOG.sch             05_CURRENT_SENSE_TRIP.sch             06_SI_HALFBRIDGE.sch             07_RECONSTRUCTION_LC.sch             08_INJECTION_DISCONNECT.sch             09_MONITOR_THERMAL_UI.sch             RC18_RevB_SI.sch
+          do
+            docker run --rm               -v "${{ github.workspace }}:/work"               -w "${WD}"               kicad/kicad:10.0.6               kicad-cli sch upgrade "${f}"
+          done
+          echo "===== generated modern schematics ====="
+          find hardware/rc18-revb-si-p2-native -maxdepth 1 -name '*.kicad_sch' -print | sort
+          echo "===== root sheetfile references ====="
+          grep -n 'Sheetfile' hardware/rc18-revb-si-p2-native/RC18_RevB_SI.kicad_sch || true
+
+      - name: Point native root to native child sheets
+        run: |
+          set -euxo pipefail
+          ROOT=hardware/rc18-revb-si-p2-native/RC18_RevB_SI.kicad_sch
+          for n in             01_POWER_INPUT             02_POWER_RAILS             03_MCU_DIGITAL             04_VLINE_ANALOG             05_CURRENT_SENSE_TRIP             06_SI_HALFBRIDGE             07_RECONSTRUCTION_LC             08_INJECTION_DISCONNECT             09_MONITOR_THERMAL_UI
+          do
+            sed -i "s/${n}\\.sch/${n}.kicad_sch/g" "${ROOT}"
+          done
+          grep -n 'Sheetfile' "${ROOT}" || true
+
+      - name: Run actual KiCad 10 ERC on native-upgraded P2
+        id: erc
+        continue-on-error: true
+        run: |
+          docker run --rm             -v "${{ github.workspace }}:/work"             -w /work/hardware/rc18-revb-si-p2-native             kicad/kicad:10.0.6             kicad-cli sch erc               --severity-all               --exit-code-violations               --output /work/ci-reports-native/rc18-revb-si-p2-native-kicad10-erc.rpt               RC18_RevB_SI.kicad_sch
+
+      - name: Print actual ERC report
+        if: always()
+        run: |
+          echo "===== NATIVE KICAD 10 ERC ====="
+          test -f ci-reports-native/rc18-revb-si-p2-native-kicad10-erc.rpt && cat ci-reports-native/rc18-revb-si-p2-native-kicad10-erc.rpt || true
+          echo "ERC outcome: ${{ steps.erc.outcome }}"
+
+      - name: Upload native-upgraded P2 and ERC report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rc18-revb-si-p2-native-kicad10-erc
+          path: |
+            ci-reports-native/
+            hardware/rc18-revb-si-p2-native/
+          if-no-files-found: warn
+
+      - name: Enforce actual ERC pass
+        if: always()
+        run: test "${{ steps.erc.outcome }}" = "success"
