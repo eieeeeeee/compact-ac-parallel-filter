@@ -21,9 +21,9 @@ def add_zone(name,pts):
     z.SetLocalClearance(pcbnew.FromMM(0.20))
     z.SetMinThickness(pcbnew.FromMM(0.20))
     try:
-        z.SetPadConnection(pcbnew.ZONE_CONNECTION_THERMAL)
-        z.SetThermalReliefGap(pcbnew.FromMM(0.25))
-        z.SetThermalReliefSpokeWidth(pcbnew.FromMM(0.30))
+        # Quiet top-side GND is a low-inductance stitching/pour layer.  Solid
+        # pad connection avoids thermal starvation at crowded 0603/MCU pads.
+        z.SetPadConnection(pcbnew.ZONE_CONNECTION_FULL)
     except Exception:
         pass
     z.AddPolygon(vv(pts)); b.Add(z)
