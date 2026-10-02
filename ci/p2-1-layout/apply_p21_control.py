@@ -28,7 +28,7 @@ def seg(netitem,a,c,w=0.20,layer=pcbnew.F_Cu):
     t.SetLocked(True)
     b.Add(t)
 
-def via(netitem,at,diam=0.50,drill=0.20):
+def via(netitem,at,diam=0.60,drill=0.30):
     v=pcbnew.PCB_VIA(b)
     v.SetPosition(pcbnew.VECTOR2I_MM(at[0],at[1]))
     v.SetViaType(pcbnew.VIATYPE_THROUGH)
@@ -60,21 +60,20 @@ def assert_net(a_ref,a_pin,b_ref,b_pin):
 # Keep them away from the F.Cu gate/output and GAN_SW loops.
 # ---------------------------------------------------------------------------
 hi,_=assert_net("U1",30,"R601",1)
-hi_mcu=(19.00,34.60)
+hi_mcu=(19.20,36.00)
 hi_r=(7.00,10.70)
-# Fan horizontally clear of the 0.5-mm MCU pad row, then drop to the via.
-poly(hi,[xy(pad("U1",30)),(19.00,32.950),hi_mcu],0.18,pcbnew.F_Cu)
+poly(hi,[xy(pad("U1",30)),(19.20,32.950),(19.20,36.00)],0.18,pcbnew.F_Cu)
 via(hi,hi_mcu)
 b_escape("R601",1,hi_r)
-poly(hi,[hi_mcu,(21.50,34.60),(21.50,24.00),(7.00,24.00),hi_r],0.18,pcbnew.B_Cu)
+poly(hi,[hi_mcu,(21.50,36.00),(21.50,24.00),(7.00,24.00),hi_r],0.18,pcbnew.B_Cu)
 
 lo,_=assert_net("U1",31,"R602",1)
-lo_mcu=(19.00,30.80)
+lo_mcu=(19.50,29.00)
 lo_r=(6.00,10.80)
-poly(lo,[xy(pad("U1",31)),(19.00,32.450),lo_mcu],0.18,pcbnew.F_Cu)
+poly(lo,[xy(pad("U1",31)),(19.20,32.450),(19.20,29.00),lo_mcu],0.18,pcbnew.F_Cu)
 via(lo,lo_mcu)
 b_escape("R602",1,lo_r)
-poly(lo,[lo_mcu,(19.00,25.20),(6.00,25.20),lo_r],0.18,pcbnew.B_Cu)
+poly(lo,[lo_mcu,(19.50,25.20),(6.00,25.20),lo_r],0.18,pcbnew.B_Cu)
 
 # Driver input resistors to U6: short F.Cu approaches from below.
 hid,_=assert_net("R601",2,"U6",7)
@@ -95,18 +94,17 @@ poly(en_cmd,[en_mcu,(1.20,27.30),en_r],0.18,pcbnew.B_Cu)
 # power/control region on B.Cu, avoiding the LO_DRV B.Cu diagonal.
 uen,_=assert_net("R606",2,"U6",6)
 assert_net("U6",6,"R605",1)
-uen_r606=(0.70,5.05)
-uen_u6=(9.40,6.50)
+uen_r606=(0.90,5.05)
+uen_u6=(9.40,5.50)
 uen_r605=(14.70,10.50)
-# Three local F.Cu escapes; all long U6_EN copper remains on B.Cu.
 poly(uen,[xy(pad("R606",2)),uen_r606],0.18,pcbnew.F_Cu)
 via(uen,uen_r606)
 poly(uen,[xy(pad("U6",6)),(9.40,7.40),uen_u6],0.18,pcbnew.F_Cu)
 via(uen,uen_u6)
 poly(uen,[xy(pad("R605",1)),(14.70,11.70),uen_r605],0.18,pcbnew.F_Cu)
 via(uen,uen_r605)
-poly(uen,[uen_r606,(0.70,4.30),(9.40,4.30),uen_u6],0.18,pcbnew.B_Cu)
-poly(uen,[uen_u6,(9.40,4.30),(14.70,4.30),uen_r605],0.18,pcbnew.B_Cu)
+poly(uen,[uen_r606,(0.90,4.00),(9.40,4.00),uen_u6],0.18,pcbnew.B_Cu)
+poly(uen,[uen_u6,(9.40,4.00),(14.70,4.00),uen_r605],0.18,pcbnew.B_Cu)
 
 b.BuildConnectivity()
 pcbnew.ZONE_FILLER(b).Fill(b.Zones())
