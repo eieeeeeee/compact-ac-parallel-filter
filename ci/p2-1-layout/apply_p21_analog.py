@@ -89,12 +89,8 @@ poly(acin,[xy(pad("R201",2)),(28.655,36.60),(33.555,36.60),xy(pad("C201",1))],0.
 
 # Wide ADC RC node: keep R203-C203 local.  MCU leg is added in stage B.
 wide,_=assert_net("R203",2,"C203",1)
-vw1=(27.90,34.75); vw2=(35.00,34.75)
-poly(wide,[xy(pad("R203",2)),vw1],0.15,pcbnew.F_Cu)
-via(wide,vw1)
-poly(wide,[vw1,vw2],0.15,pcbnew.B_Cu)
-via(wide,vw2)
-poly(wide,[vw2,xy(pad("C203",1))],0.15,pcbnew.F_Cu)
+# Pass above the C220 pad row on F.Cu; the BUF crossover is moved to B.Cu.
+poly(wide,[xy(pad("R203",2)),(28.655,34.90),(33.555,34.90),xy(pad("C203",1))],0.15,pcbnew.F_Cu)
 gnd_drop("C203",2,(36.20,35.20))
 
 # Op-amp buffer pins 1/2 are the same net. Join at the package edge, then
@@ -103,7 +99,12 @@ buf,_=assert_net("U2",1,"U2",2)
 assert_net("U2",1,"R203",1)
 assert_net("U2",1,"R206",1)
 poly(buf,[xy(pad("U2",2)),xy(pad("U2",1))],0.15,pcbnew.F_Cu)
-poly(buf,[xy(pad("U2",1)),(34.10,34.70),(29.00,34.70),xy(pad("R203",1))],0.15,pcbnew.F_Cu)
+vb1=(34.20,34.45); vb2=(26.50,34.45)
+poly(buf,[xy(pad("U2",1)),vb1],0.15,pcbnew.F_Cu)
+via(buf,vb1)
+poly(buf,[vb1,vb2],0.15,pcbnew.B_Cu)
+via(buf,vb2)
+poly(buf,[vb2,xy(pad("R203",1))],0.15,pcbnew.F_Cu)
 poly(buf,[xy(pad("R203",1)),(26.30,36.60),(26.30,38.20),xy(pad("R206",1))],0.15,pcbnew.F_Cu)
 
 # Fine compensation row: same-net passives are tied directly and compactly.
