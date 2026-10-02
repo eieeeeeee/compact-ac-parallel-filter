@@ -94,7 +94,7 @@ log.append(("LO_DRV B.Cu escape","U6","10","R604","1",0.20,3))
 r604_out=pad("R604",2)
 p=xy(r604_out)
 lo_gate_land=(11.80,6.10)
-lo_pts=[p,(10.20,9.00),(10.20,6.10),lo_gate_land]
+lo_pts=[p,(11.20,9.00),(11.20,6.10),lo_gate_land]
 for aa,bb in zip(lo_pts,lo_pts[1:]):
     seg(r604_out,aa,bb,0.10)
 log.append(("Q602 gate after Rg","R604","2","Q602","1",0.10,len(lo_pts)-1))
