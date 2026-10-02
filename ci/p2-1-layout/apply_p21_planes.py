@@ -38,7 +38,7 @@ ko=pcbnew.ZONE(b)
 ko.SetLayer(in1)
 ko.SetIsRuleArea(True)
 ko.SetZoneName("P21_GAN_SW_L2_KEEPOUT")
-ko.SetDoNotAllowCopperPour(True)
+ko.SetDoNotAllowZoneFills(True)
 ko.AddPolygon(vv([(11.20,3.75),(18.70,3.75),(18.70,6.90),(11.20,6.90)]))
 b.Add(ko)
 
