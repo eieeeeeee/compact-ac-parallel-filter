@@ -1,0 +1,67 @@
+name: KiCad 10 RC18 Rev.B-SI P2.1 Connectivity Audit
+
+on:
+  push:
+    branches:
+      - rc18-revb-si-p2-1-functional-layout
+    paths:
+      - 'ci/p2-1-layout/**'
+      - '.github/workflows/kicad10-rc18-revb-si-p2-1-connectivity-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  p21-connectivity-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reconstruct ERC0
+        run: |
+          set -euxo pipefail
+          mkdir -p ci-reports hardware/rc18-revb-si-p21-audit
+          cat ci/p2-kicad10/p2-package.b64.part* | base64 -d > /tmp/p2.zip
+          unzip -q -o /tmp/p2.zip -d hardware/rc18-revb-si-p21-audit
+          python ci/p2-kicad10/fix_erc.py hardware/rc18-revb-si-p21-audit/P2_KiCad10_ERC0_Footprint
+          chmod -R a+rwX ci-reports hardware/rc18-revb-si-p21-audit/P2_KiCad10_ERC0_Footprint
+      - run: docker pull kicad/kicad:10.0.6
+      - name: Build current P2.1 protected board
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/work" \
+            -w /work/hardware/rc18-revb-si-p21-audit/P2_KiCad10_ERC0_Footprint \
+            kicad/kicad:10.0.6 \
+            bash -lc '
+              kicad-cli sch export netlist --format kicadxml -o /work/ci-reports/RC18_RevB_SI.xml RC18_RevB_SI.kicad_sch
+              python3 /work/ci/p2-1-layout/generate_p21_placement.py . /work/ci-reports/RC18_RevB_SI.xml RC18_RevB_SI.kicad_pcb
+              python3 /work/ci/p2-1-layout/apply_p21_critical.py RC18_RevB_SI.kicad_pcb RC18_RevB_SI.kicad_pcb
+              python3 /work/ci/p2-1-layout/apply_p21_planes.py RC18_RevB_SI.kicad_pcb RC18_RevB_SI.kicad_pcb
+              python3 /work/ci/p2-1-layout/apply_p21_control.py RC18_RevB_SI.kicad_pcb RC18_RevB_SI.kicad_pcb
+              python3 /work/ci/p2-1-layout/apply_p21_analog.py RC18_RevB_SI.kicad_pcb RC18_RevB_SI.kicad_pcb
+              python3 /work/ci/p2-1-layout/enable_p21_connectivity.py RC18_RevB_SI.kicad_pro
+            '
+      - name: Run connectivity DRC
+        id: drc
+        continue-on-error: true
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/work" \
+            -w /work/hardware/rc18-revb-si-p21-audit/P2_KiCad10_ERC0_Footprint \
+            kicad/kicad:10.0.6 \
+            kicad-cli pcb drc --severity-all --exit-code-violations \
+              --output /work/ci-reports/RC18_P21_CONNECTIVITY_AUDIT.rpt \
+              RC18_RevB_SI.kicad_pcb
+      - name: Print audit
+        if: always()
+        run: |
+          cat ci-reports/RC18_P21_CONNECTIVITY_AUDIT.rpt || true
+      - name: Upload audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rc18-revb-si-p21-connectivity-audit
+          path: |
+            ci-reports/
+            hardware/rc18-revb-si-p21-audit/P2_KiCad10_ERC0_Footprint/
