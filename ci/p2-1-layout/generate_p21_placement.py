@@ -130,6 +130,50 @@ actual={r for r in comps if not r.startswith("#") and r not in SKIP}
 if actual!=set(P):
     raise RuntimeError(f"placement map mismatch missing={sorted(actual-set(P))} extra={sorted(set(P)-actual)}")
 
+# The VLINE fine row must sit inside the 0.50 mm copper-edge rule while
+# avoiding the taller C6/R201/R211 courtyards above it.  Keep y=38.90 mm and
+# solve only X positions for these four passive parts; all functional IC and
+# power-stage placements remain explicitly frozen.
+fine_refs=["R205","C204","R206","R204"]
+fine_pref={"R205":21.00,"C204":24.10,"R206":27.20,"R204":30.30}
+fixed_rects=[]
+for ref,(x,y,rot) in P.items():
+    if ref in fine_refs:
+        continue
+    fpname="RC18_Custom:J201_POGO5" if ref=="J201" else comps[ref]["footprint"]
+    bb=rbbox(courtyard_bbox(fpname),rot)
+    fixed_rects.append((ref,(x+bb[0],y+bb[1],x+bb[2],y+bb[3])))
+
+placed_fine=[]
+def _overlap(a,b):
+    ax0,ay0,ax1,ay1=a; bx0,by0,bx1,by1=b
+    return not (ax0>=bx1 or bx0>=ax1 or ay0>=by1 or by0>=ay1)
+
+for ref in fine_refs:
+    _,y,rot=P[ref]
+    fpname=comps[ref]["footprint"]
+    bb=rbbox(courtyard_bbox(fpname),rot)
+    pref=fine_pref[ref]
+    candidates=[18.0+i*0.10 for i in range(int((46.0-18.0)/0.10)+1)]
+    candidates.sort(key=lambda x:(abs(x-pref),x))
+    chosen=None
+    for x in candidates:
+        rr=(x+bb[0],y+bb[1],x+bb[2],y+bb[3])
+        if rr[0]<0.50 or rr[2]>49.50 or rr[3]>39.90:
+            continue
+        if any(_overlap(rr,r) for _,r in fixed_rects):
+            continue
+        if any(_overlap(rr,r) for _,r in placed_fine):
+            continue
+        chosen=(x,rr)
+        break
+    if chosen is None:
+        raise RuntimeError(f"cannot place {ref} in VLINE fine bottom row")
+    x,rr=chosen
+    P[ref]=(x,y,rot)
+    placed_fine.append((ref,rr))
+    print(f"P2.1 VLINE fine placement {ref}=({x:.2f},{y:.2f})")
+
 # Validate actual courtyards.
 rects={}
 for ref,(x,y,rot) in P.items():
