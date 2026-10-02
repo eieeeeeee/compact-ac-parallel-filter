@@ -31,6 +31,19 @@ def seg(netpad,a,c,w,layer=pcbnew.F_Cu,lock=True):
     b.Add(t)
     return t
 
+def via(netpad,at,diam=0.60,drill=0.30,lock=True):
+    v=pcbnew.PCB_VIA(b)
+    v.SetPosition(pcbnew.VECTOR2I_MM(at[0],at[1]))
+    v.SetViaType(pcbnew.VIATYPE_THROUGH)
+    v.SetWidth(pcbnew.FromMM(diam))
+    v.SetDrill(pcbnew.FromMM(drill))
+    v.SetLayerPair(pcbnew.F_Cu,pcbnew.B_Cu)
+    v.SetNet(netpad.GetNet())
+    try: v.SetLocked(lock)
+    except Exception: pass
+    b.Add(v)
+    return v
+
 log=[]
 def route(ar,ap,br,bp,w,mids=None,label="",layer=pcbnew.F_Cu):
     a=pad(ar,ap); z=pad(br,bp)
@@ -65,10 +78,19 @@ for aa,bb in zip(hi_pts,hi_pts[1:]):
     seg(r603_out,aa,bb,0.20)
 log.append(("Q601 gate after Rg","R603","2","Q601","1",0.20,len(hi_pts)-1))
 
-# Low-side gate.
-route("U6",10,"R604",1,0.20,
-      mids=[(10.00,7.40),(10.00,10.40),(12.625,10.40)],
-      label="LO_DRV")
+# Low-side gate.  Pin 10 is the left-most pad of U6's lower row; never
+# cross pins 9..6 on F.Cu.  Escape left, change to B.Cu, then return beside
+# R604.  This preserves the future In1.Cu GND plane and avoids SI_HI/EN pads.
+lo=pad("U6",10)
+r604_in=pad("R604",1)
+v1=(6.10,7.40)
+v2=(13.70,9.00)
+seg(lo,xy(lo),v1,0.20,pcbnew.F_Cu)
+via(lo,v1)
+seg(lo,v1,v2,0.20,pcbnew.B_Cu)
+via(lo,v2)
+seg(lo,v2,xy(r604_in),0.20,pcbnew.F_Cu)
+log.append(("LO_DRV B.Cu escape","U6","10","R604","1",0.20,3))
 r604_out=pad("R604",2)
 p=xy(r604_out)
 lo_gate_land=(11.80,6.10)
