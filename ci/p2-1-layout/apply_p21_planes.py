@@ -79,19 +79,16 @@ b.Add(ko)
 # Critical GND drops into the L2 plane.  Keep the driver return local,
 # give each LC shunt its own low-inductance return, and ground INA296 locally.
 for args in [
+    # Driver supply return; C602 remains on the same local return island and
+    # will receive its own via only after the low-side escape corridor is final.
     ("C601",2,(5.70,5.40)),
-    ("C602",2,(5.60,7.80)),
-    ("U6",9,(8.50,3.70)),
+    # Each reconstruction shunt gets an independent L2 return.
     ("R611",2,(17.175,11.00)),
     ("R612",2,(21.675,11.00)),
     ("R613",2,(26.175,11.00)),
-    ("C310",2,(30.50,12.80)),
+    # INA296 has two GND pins; drop both directly into L2.
     ("U3",2,(38.00,12.325)),
     ("U3",4,(38.00,11.025)),
-    ("U1",19,(14.25,37.70)),
-    ("U1",23,(16.25,37.70)),
-    ("U1",35,(19.05,30.45)),
-    ("U1",47,(10.85,28.54)),
 ]:
     add_gnd_stitch(*args)
 
