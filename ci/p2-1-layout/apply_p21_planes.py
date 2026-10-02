@@ -14,7 +14,10 @@ def vv(points):
     return v
 
 gnd=b.GetNetsByName()["GND"]
+p12=b.GetNetsByName()["12V_PROT"]
+p33=b.GetNetsByName()["3V3"]
 in1=b.GetLayerID("In1.Cu")
+in2=b.GetLayerID("In2.Cu")
 fps={fp.GetReference():fp for fp in b.GetFootprints()}
 
 def pad(ref,num):
@@ -50,6 +53,23 @@ def add_gnd_stitch(ref,num,at,w=0.30,diam=0.60,drill=0.30):
     b.Add(v)
     print(f"GND stitch {ref}.{num} {xy(p)} -> {at}")
 
+def add_power_zone(net, layer, name, points):
+    z=pcbnew.ZONE(b)
+    z.SetLayer(layer)
+    z.SetNetCode(net.GetNetCode())
+    z.SetZoneName(name)
+    z.SetLocalClearance(pcbnew.FromMM(0.20))
+    z.SetMinThickness(pcbnew.FromMM(0.20))
+    try:
+        z.SetPadConnection(pcbnew.ZONE_CONNECTION_THERMAL)
+        z.SetThermalReliefGap(pcbnew.FromMM(0.25))
+        z.SetThermalReliefSpokeWidth(pcbnew.FromMM(0.30))
+    except Exception:
+        pass
+    z.AddPolygon(vv(points))
+    b.Add(z)
+    return z
+
 # L2: near-continuous GND plane.  Keep 0.50 mm off the 50 x 40 mm edge.
 z=pcbnew.ZONE(b)
 z.SetLayer(in1)
@@ -76,6 +96,27 @@ ko.SetDoNotAllowZoneFills(True)
 ko.AddPolygon(vv([(11.20,3.75),(18.70,3.75),(18.70,6.90),(11.20,6.90)]))
 b.Add(ko)
 
+# L3 power distribution.  Keep 1.2 mm of geometric separation between the
+# 12V_PROT field and the 3V3 analog/digital field before KiCad clearance.
+add_power_zone(
+    p12,in2,"P21_L3_12V_PROT",
+    [(0.50,0.50),(27.80,0.50),(27.80,20.00),(0.50,20.00)]
+)
+add_power_zone(
+    p33,in2,"P21_L3_3V3",
+    [(0.50,24.00),(29.00,24.00),(29.00,7.00),(39.00,7.00),
+     (39.00,24.00),(49.50,24.00),(49.50,39.50),(0.50,39.50)]
+)
+
+# Keep high-dv/dt GAN_SW copper free of L3 as well as L2.
+ko3=pcbnew.ZONE(b)
+ko3.SetLayer(in2)
+ko3.SetIsRuleArea(True)
+ko3.SetZoneName("P21_GAN_SW_L3_KEEPOUT")
+ko3.SetDoNotAllowZoneFills(True)
+ko3.AddPolygon(vv([(11.20,3.75),(18.70,3.75),(18.70,6.90),(11.20,6.90)]))
+b.Add(ko3)
+
 # Critical GND drops into the L2 plane.  Keep the driver return local,
 # give each LC shunt its own low-inductance return, and ground INA296 locally.
 for args in [
@@ -95,4 +136,4 @@ for args in [
 b.BuildConnectivity()
 pcbnew.ZONE_FILLER(b).Fill(b.Zones())
 pcbnew.SaveBoard(str(OUT),b)
-print("P2.1 plane stage: L2 GND plane + GAN_SW keepout filled")
+print("P2.1 plane stage: L2 GND + L3 split power planes + GAN_SW keepouts filled")
