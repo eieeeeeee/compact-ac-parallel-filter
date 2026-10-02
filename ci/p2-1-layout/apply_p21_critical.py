@@ -66,7 +66,9 @@ for aa,bb in zip(hi_pts,hi_pts[1:]):
 log.append(("Q601 gate after Rg","R603","2","Q601","1",0.20,len(hi_pts)-1))
 
 # Low-side gate.
-route("U6",10,"R604",1,0.20,mids=[(7.00,10.00),(12.625,10.00)],label="LO_DRV")
+route("U6",10,"R604",1,0.20,
+      mids=[(10.00,7.40),(10.00,10.40),(12.625,10.40)],
+      label="LO_DRV")
 r604_out=pad("R604",2)
 p=xy(r604_out)
 lo_gate_land=(11.80,6.10)
