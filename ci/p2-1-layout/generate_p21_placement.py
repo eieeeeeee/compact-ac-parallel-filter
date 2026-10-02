@@ -140,12 +140,17 @@ for ref,(x,y,rot) in P.items():
     if rect[0]<0.10 or rect[1]<0.10 or rect[2]>49.90 or rect[3]>39.90:
         raise RuntimeError(f"{ref} outside board: {rect}")
 refs=sorted(rects)
+overlaps=[]
 for i,a in enumerate(refs):
     ax0,ay0,ax1,ay1=rects[a]
     for b in refs[i+1:]:
         bx0,by0,bx1,by1=rects[b]
         if not (ax0>=bx1 or bx0>=ax1 or ay0>=by1 or by0>=ay1):
-            raise RuntimeError(f"courtyard overlap {a} {b}: {rects[a]} / {rects[b]}")
+            overlaps.append((a,b,rects[a],rects[b]))
+if overlaps:
+    for a,b,ra,rb in overlaps:
+        print(f"OVERLAP {a} {b}: {ra} / {rb}", file=sys.stderr)
+    raise RuntimeError(f"P2.1 courtyard overlaps={len(overlaps)}")
 
 board=pcbnew.BOARD()
 board.SetCopperLayerCount(4)
