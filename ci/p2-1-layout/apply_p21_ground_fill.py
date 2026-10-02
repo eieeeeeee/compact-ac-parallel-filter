@@ -28,11 +28,12 @@ def add_zone(name,pts):
         pass
     z.AddPolygon(vv(pts)); b.Add(z)
 
-# Keep the switching cell and first LC section free of top-layer ground pour.
-# Lower control/analog area gets one continuous top-side return fill.
-add_zone("P21_F_GND_LOWER",[(0.50,12.00),(49.50,12.00),(49.50,39.50),(0.50,39.50)])
-# Right-upper passive/monitor area can also carry quiet ground; stop before LC.
-add_zone("P21_F_GND_UPPER_RIGHT",[(31.00,0.50),(49.50,0.50),(49.50,12.00),(31.00,12.00)])
+# One L-shaped quiet-area ground zone.  Using one polygon avoids same-net
+# zone-boundary intersections while keeping the switching cell / first LC clear.
+add_zone("P21_F_GND_QUIET",[
+    (0.50,12.00),(31.00,12.00),(31.00,0.50),
+    (49.50,0.50),(49.50,39.50),(0.50,39.50)
+])
 
 # Geometry helpers for safe stitching-via placement.
 fps=list(b.GetFootprints())
