@@ -60,12 +60,12 @@ def assert_net(a_ref,a_pin,b_ref,b_pin):
 # Keep them away from the F.Cu gate/output and GAN_SW loops.
 # ---------------------------------------------------------------------------
 hi,_=assert_net("U1",30,"R601",1)
-hi_mcu=(18.80,36.00)
+hi_mcu=(18.80,36.30)
 hi_r=(7.00,10.70)
-poly(hi,[xy(pad("U1",30)),(19.20,32.950),(19.20,36.00),hi_mcu],0.18,pcbnew.F_Cu)
+poly(hi,[xy(pad("U1",30)),(19.20,32.950),(19.20,36.30),hi_mcu],0.18,pcbnew.F_Cu)
 via(hi,hi_mcu)
 b_escape("R601",1,hi_r)
-poly(hi,[hi_mcu,(21.50,36.00),(21.50,24.00),(7.00,24.00),hi_r],0.18,pcbnew.B_Cu)
+poly(hi,[hi_mcu,(21.50,36.30),(21.50,24.00),(7.00,24.00),hi_r],0.18,pcbnew.B_Cu)
 
 lo,_=assert_net("U1",31,"R602",1)
 lo_mcu=(18.80,29.00)
