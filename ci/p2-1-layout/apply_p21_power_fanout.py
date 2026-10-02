@@ -55,7 +55,9 @@ def candidate_for(fp,p):
     dx=px-fc[0]; dy=py-fc[1]
     if math.hypot(dx,dy)<0.05: dx,dy=1.0,0.0
     base=math.atan2(dy,dx)
-    others=[q for q in allpads if q[0] is not p]
+    # SWIG may return a new Python wrapper for the same pad; object identity is
+    # not reliable.  Exclude the source pad by its physical center instead.
+    others=[q for q in allpads if math.hypot(q[1]-px,q[2]-py)>0.02]
     for r in (0.85,1.05,1.25,1.45):
         for da in (0,math.radians(30),-math.radians(30),math.radians(60),-math.radians(60),math.radians(90),-math.radians(90),math.pi):
             a=base+da; x=px+r*math.cos(a); y=py+r*math.sin(a)
@@ -84,30 +86,9 @@ for fp in fps.values():
         via(p,at,0.65 if net=="12V_PROT" else 0.60,0.30)
         added.append((fp.GetReference(),p.GetNumber(),net,at))
 
-# Explicit GND returns remaining outside the quiet F.Cu pour.
-def gdrop(ref,num,at,w=0.30):
-    p=pad(ref,num)
-    if p.GetNetname()!="GND": raise RuntimeError(f"{ref}.{num} not GND")
-    seg(p,xy(p),at,w); via(p,at,0.60,0.30)
-
-# C902/C602/C601 local driver/input return chain to an L2 via.
-p=pad("C902",2); seg(p,xy(p),(2.20,8.20),0.25); seg(p,(2.20,8.20),xy(pad("C602",2)),0.25)
-p2=pad("C602",2); seg(p2,xy(p2),xy(pad("C601",2)),0.30)
-# Existing C601 return via at (5.70,5.40) is already present from plane stage.
-
-# U6 local ground pins to C601 return, kept left of GAN_SW.
-u11=pad("U6",11); seg(u11,xy(u11),(6.20,6.00),0.35); seg(u11,(6.20,6.00),(5.70,5.40),0.35)
-u9=pad("U6",9); seg(u9,xy(u9),(6.20,7.40),0.30); seg(u9,(6.20,7.40),(5.70,5.40),0.30)
-# Low-side source exits below the switch keepout to its own low-inductance via.
-gdrop("Q602",2,(10.60,7.40),0.80)
-# C605 ground is above the switch-node keepout; drop directly to L2.
-gdrop("C605",2,(16.70,2.63),0.45)
-# Quiet top-left/right option caps not covered by F.Cu GND pour.
-gdrop("C620",2,(24.40,1.30),0.25)
-gdrop("C614",2,(28.90,2.13),0.25)
-gdrop("C310",2,(29.70,10.43),0.25)
-# U701 exposed/ground pad gets an explicit L2 return.
-gdrop("U701",6,(5.90,11.30),0.30)
+# GND power-cell returns are intentionally not added here.  They are handled
+# separately after the SI_LO/U6_EN corridors are frozen, so power-plane fanout
+# cannot regress the already-clean control routing.
 
 b.BuildConnectivity(); pcbnew.ZONE_FILLER(b).Fill(b.Zones()); pcbnew.SaveBoard(str(OUT),b)
 print(f"P2.1 power fanout added={len(added)} failed={len(failed)}")
