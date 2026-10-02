@@ -142,7 +142,7 @@ b.Add(ko3)
 
 # Seed each L3 power field with one direct SMD-to-plane connection so the
 # copper is electrically anchored and not treated as an isolated fill.
-add_power_drop("C701",1,(2.35,12.725),p12)
+add_power_drop("C701",1,(2.35,15.675),p12)
 add_power_drop("C1",1,(9.60,26.20),p33)
 
 # Critical GND drops into the L2 plane.  Keep the driver return local,
