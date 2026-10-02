@@ -30,6 +30,29 @@ def xy(item):
     p=item.GetPosition()
     return pcbnew.ToMM(p.x),pcbnew.ToMM(p.y)
 
+def add_power_drop(ref,num,at,net,w=0.40,diam=0.70,drill=0.30):
+    p=pad(ref,num)
+    if p.GetNetname()!=net.GetNetname():
+        raise RuntimeError(f"{ref}.{num} is {p.GetNetname()}, expected {net.GetNetname()}")
+    t=pcbnew.PCB_TRACK(b)
+    t.SetStart(p.GetPosition())
+    t.SetEnd(pcbnew.VECTOR2I_MM(at[0],at[1]))
+    t.SetWidth(pcbnew.FromMM(w))
+    t.SetLayer(pcbnew.F_Cu)
+    t.SetNet(net)
+    t.SetLocked(True)
+    b.Add(t)
+    v=pcbnew.PCB_VIA(b)
+    v.SetPosition(pcbnew.VECTOR2I_MM(at[0],at[1]))
+    v.SetViaType(pcbnew.VIATYPE_THROUGH)
+    v.SetWidth(pcbnew.FromMM(diam))
+    v.SetDrill(pcbnew.FromMM(drill))
+    v.SetLayerPair(pcbnew.F_Cu,pcbnew.B_Cu)
+    v.SetNetCode(net.GetNetCode())
+    v.SetLocked(True)
+    b.Add(v)
+    print(f"POWER drop {ref}.{num} {xy(p)} -> {at} [{net.GetNetname()}]")
+
 def add_gnd_stitch(ref,num,at,w=0.30,diam=0.60,drill=0.30):
     p=pad(ref,num)
     if p.GetNetname()!="GND":
@@ -116,6 +139,11 @@ ko3.SetZoneName("P21_GAN_SW_L3_KEEPOUT")
 ko3.SetDoNotAllowZoneFills(True)
 ko3.AddPolygon(vv([(11.20,3.75),(18.70,3.75),(18.70,6.90),(11.20,6.90)]))
 b.Add(ko3)
+
+# Seed each L3 power field with one direct SMD-to-plane connection so the
+# copper is electrically anchored and not treated as an isolated fill.
+add_power_drop("C701",1,(2.35,12.725),p12)
+add_power_drop("C1",1,(9.60,26.20),p33)
 
 # Critical GND drops into the L2 plane.  Keep the driver return local,
 # give each LC shunt its own low-inductance return, and ground INA296 locally.
