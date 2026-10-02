@@ -84,16 +84,12 @@ gnd_drop("C314",2,(46.40,10.80))
 
 # AC coupling resistor to C201.
 acin,_=assert_net("R201",2,"C201",1)
-va1=(28.655,38.20); va2=(33.555,38.20)
-poly(acin,[xy(pad("R201",2)),va1],0.15,pcbnew.F_Cu)
-via(acin,va1)
-poly(acin,[va1,va2],0.15,pcbnew.B_Cu)
-via(acin,va2)
-poly(acin,[va2,xy(pad("C201",1))],0.15,pcbnew.F_Cu)
+# Thread between the 35.83 mm and 37.40 mm passive rows without vias.
+poly(acin,[xy(pad("R201",2)),(28.655,36.60),(33.555,36.60),xy(pad("C201",1))],0.15,pcbnew.F_Cu)
 
 # Wide ADC RC node: keep R203-C203 local.  MCU leg is added in stage B.
 wide,_=assert_net("R203",2,"C203",1)
-vw1=(28.655,34.75); vw2=(33.555,34.75)
+vw1=(27.90,34.75); vw2=(35.00,34.75)
 poly(wide,[xy(pad("R203",2)),vw1],0.15,pcbnew.F_Cu)
 via(wide,vw1)
 poly(wide,[vw1,vw2],0.15,pcbnew.B_Cu)
@@ -112,16 +108,21 @@ poly(buf,[xy(pad("R203",1)),(26.30,36.60),(26.30,38.20),xy(pad("R206",1))],0.15,
 
 # Fine compensation row: same-net passives are tied directly and compactly.
 fout,_=assert_net("R205",1,"C204",1)
-poly(fout,[xy(pad("R205",1)),(20.175,38.00),(23.325,38.00),xy(pad("C204",1))],0.15,pcbnew.F_Cu)
+fo1=(19.20,38.90); fo2=(23.325,37.80)
+poly(fout,[xy(pad("R205",1)),fo1],0.15,pcbnew.F_Cu)
+via(fout,fo1)
+poly(fout,[fo1,fo2],0.15,pcbnew.B_Cu)
+via(fout,fo2)
+poly(fout,[fo2,xy(pad("C204",1))],0.15,pcbnew.F_Cu)
 
-# VINM uses a bottom B.Cu lane.  0.50/0.20 mm vias at y=39.20 retain
-# 0.55 mm copper-to-edge clearance on the 40 mm board.
+# VINM uses a bottom B.Cu lane.  0.60/0.30 mm vias at y=39.20 land
+# exactly at the 0.50 mm copper-to-edge manufacturing floor.
 fvinm,_=assert_net("R205",2,"C204",2)
 assert_net("R205",2,"R204",1)
 fv1=(21.825,39.20); fv2=(24.875,39.20); fv3=(29.475,39.20)
-poly(fvinm,[xy(pad("R205",2)),fv1],0.15,pcbnew.F_Cu); via(fvinm,fv1,0.50,0.20)
-poly(fvinm,[xy(pad("C204",2)),fv2],0.15,pcbnew.F_Cu); via(fvinm,fv2,0.50,0.20)
-poly(fvinm,[xy(pad("R204",1)),fv3],0.15,pcbnew.F_Cu); via(fvinm,fv3,0.50,0.20)
+poly(fvinm,[xy(pad("R205",2)),fv1],0.15,pcbnew.F_Cu); via(fvinm,fv1,0.60,0.30)
+poly(fvinm,[xy(pad("C204",2)),fv2],0.15,pcbnew.F_Cu); via(fvinm,fv2,0.60,0.30)
+poly(fvinm,[xy(pad("R204",1)),fv3],0.15,pcbnew.F_Cu); via(fvinm,fv3,0.60,0.30)
 poly(fvinm,[fv1,fv2,fv3],0.15,pcbnew.B_Cu)
 
 # Remaining U2/VMID ground stitching is added after the analog signal
