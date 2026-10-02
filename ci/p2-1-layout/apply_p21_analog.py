@@ -62,13 +62,13 @@ def gnd_drop(ref,num,at):
 raw,_=assert_net("U3",5,"R313",1)
 assert_net("U3",5,"R314",1)
 vraw1=(32.60,9.55)
-vraw2=(37.55,9.55)
+vraw2=(37.60,7.50)
 poly(raw,[xy(pad("U3",5)),vraw1],0.15,pcbnew.F_Cu)
 via(raw,vraw1)
-poly(raw,[vraw1,vraw2],0.15,pcbnew.B_Cu)
+poly(raw,[vraw1,(32.60,7.50),vraw2],0.15,pcbnew.B_Cu)
 via(raw,vraw2)
-poly(raw,[vraw2,(38.00,8.80),xy(pad("R313",1))],0.15,pcbnew.F_Cu)
-poly(raw,[vraw2,(38.20,10.80),xy(pad("R314",1))],0.15,pcbnew.F_Cu)
+poly(raw,[vraw2,xy(pad("R313",1))],0.15,pcbnew.F_Cu)
+poly(raw,[vraw2,(39.075,9.70),xy(pad("R314",1))],0.15,pcbnew.F_Cu)
 
 # RC outputs remain local before the long filtered lines leave this island.
 adc,_=assert_net("R313",2,"C313",1)
@@ -84,12 +84,22 @@ gnd_drop("C314",2,(46.40,10.80))
 
 # AC coupling resistor to C201.
 acin,_=assert_net("R201",2,"C201",1)
-poly(acin,[xy(pad("R201",2)),(31.20,37.40),xy(pad("C201",1))],0.15,pcbnew.F_Cu)
+va1=(28.655,38.20); va2=(33.555,38.20)
+poly(acin,[xy(pad("R201",2)),va1],0.15,pcbnew.F_Cu)
+via(acin,va1)
+poly(acin,[va1,va2],0.15,pcbnew.B_Cu)
+via(acin,va2)
+poly(acin,[va2,xy(pad("C201",1))],0.15,pcbnew.F_Cu)
 
 # Wide ADC RC node: keep R203-C203 local.  MCU leg is added in stage B.
 wide,_=assert_net("R203",2,"C203",1)
-poly(wide,[xy(pad("R203",2)),xy(pad("C203",1))],0.15,pcbnew.F_Cu)
-gnd_drop("C203",2,(35.90,35.83))
+vw1=(28.655,34.75); vw2=(33.555,34.75)
+poly(wide,[xy(pad("R203",2)),vw1],0.15,pcbnew.F_Cu)
+via(wide,vw1)
+poly(wide,[vw1,vw2],0.15,pcbnew.B_Cu)
+via(wide,vw2)
+poly(wide,[vw2,xy(pad("C203",1))],0.15,pcbnew.F_Cu)
+gnd_drop("C203",2,(36.20,35.20))
 
 # Op-amp buffer pins 1/2 are the same net. Join at the package edge, then
 # leave below the U2 courtyard toward R203.1.
@@ -102,19 +112,20 @@ poly(buf,[xy(pad("R203",1)),(26.30,36.60),(26.30,38.20),xy(pad("R206",1))],0.15,
 
 # Fine compensation row: same-net passives are tied directly and compactly.
 fout,_=assert_net("R205",1,"C204",1)
-poly(fout,[xy(pad("R205",1)),xy(pad("C204",1))],0.15,pcbnew.F_Cu)
+poly(fout,[xy(pad("R205",1)),(20.175,38.00),(23.325,38.00),xy(pad("C204",1))],0.15,pcbnew.F_Cu)
 
+# VINM uses a bottom B.Cu lane.  0.50/0.20 mm vias at y=39.20 retain
+# 0.55 mm copper-to-edge clearance on the 40 mm board.
 fvinm,_=assert_net("R205",2,"C204",2)
 assert_net("R205",2,"R204",1)
-poly(fvinm,[xy(pad("R205",2)),xy(pad("C204",2)),xy(pad("R204",1))],0.15,pcbnew.F_Cu)
+fv1=(21.825,39.20); fv2=(24.875,39.20); fv3=(29.475,39.20)
+poly(fvinm,[xy(pad("R205",2)),fv1],0.15,pcbnew.F_Cu); via(fvinm,fv1,0.50,0.20)
+poly(fvinm,[xy(pad("C204",2)),fv2],0.15,pcbnew.F_Cu); via(fvinm,fv2,0.50,0.20)
+poly(fvinm,[xy(pad("R204",1)),fv3],0.15,pcbnew.F_Cu); via(fvinm,fv3,0.50,0.20)
+poly(fvinm,[fv1,fv2,fv3],0.15,pcbnew.B_Cu)
 
-# U2 supply decoupling and local ground drops.
-gnd_drop("C220",2,(32.55,35.83))
-gnd_drop("U2",4,(34.10,32.025))
-gnd_drop("C210",2,(36.60,32.10))
-gnd_drop("C211",2,(32.60,28.33))
-gnd_drop("C221",2,(32.60,30.08))
-gnd_drop("R211",2,(32.70,37.40))
+# Remaining U2/VMID ground stitching is added after the analog signal
+# corridors are frozen, so return vias cannot force signal detours.
 
 b.BuildConnectivity()
 pcbnew.ZONE_FILLER(b).Fill(b.Zones())
