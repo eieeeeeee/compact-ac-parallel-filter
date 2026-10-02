@@ -40,6 +40,7 @@ jobs:
               python3 /work/ci/p2-1-layout/apply_p21_planes.py RC18_RevB_SI.kicad_pcb RC18_RevB_SI.kicad_pcb
               python3 /work/ci/p2-1-layout/apply_p21_control.py RC18_RevB_SI.kicad_pcb RC18_RevB_SI.kicad_pcb
               python3 /work/ci/p2-1-layout/apply_p21_analog.py RC18_RevB_SI.kicad_pcb RC18_RevB_SI.kicad_pcb
+              python3 /work/ci/p2-1-layout/apply_p21_ground_fill.py RC18_RevB_SI.kicad_pcb RC18_RevB_SI.kicad_pcb
               python3 /work/ci/p2-1-layout/enable_p21_connectivity.py RC18_RevB_SI.kicad_pro
             '
       - name: Run connectivity DRC
