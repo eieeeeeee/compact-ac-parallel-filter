@@ -42,20 +42,7 @@ jobs:
             ci/p21-freeze/board.part08a \
             ci/p21-freeze/board.part08b \
             > /tmp/p21/RC18_RevB_SI.kicad_pcb
-          sha256sum /tmp/p21/RC18_RevB_SI.kicad_pcb
-          python - <<'PY'
-          from pathlib import Path
-          import re, hashlib
-          p=Path("/tmp/p21/RC18_RevB_SI.kicad_pcb")
-          b=p.read_bytes()
-          canon=re.sub(rb'[\\x09\\x0a\\x0b\\x0c\\x0d\\x20]+', b'', b)
-          got=hashlib.sha256(canon).hexdigest()
-          exp="c51e6013858a04c60836211951778aa3fed0a9a4ddd8f62ea7f27874e6646b97"
-          print("CANONICAL_SHA256",got)
-          print("CANONICAL_BYTES",len(canon))
-          if got != exp:
-              raise SystemExit(f"canonical SHA mismatch: {got} != {exp}")
-          PY
+          echo "1378ccef0f70fd8c420adfc15e54ee126f1dc376568f0ca080f8e866b2f8f40a  /tmp/p21/RC18_RevB_SI.kicad_pcb" | sha256sum -c -
 
       - name: Reconstruct native ERC0 project
         run: |
