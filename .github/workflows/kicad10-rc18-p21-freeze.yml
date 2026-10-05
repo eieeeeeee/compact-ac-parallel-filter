@@ -1,0 +1,153 @@
+name: KiCad 10 RC18 P2.1 FREEZE Gate
+
+on:
+  push:
+    branches:
+      - rc18-revb-si-p21-freeze
+    paths:
+      - 'ci/p21-freeze/**'
+      - '.github/workflows/kicad10-rc18-p21-freeze.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  freeze-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reassemble exact STEP1 board and verify SHA
+        run: |
+          set -euxo pipefail
+          mkdir -p ci-reports /tmp/p21
+          cat \
+            ci/p21-freeze/board.part00 \
+            ci/p21-freeze/board.part01 \
+            ci/p21-freeze/board.part02a \
+            ci/p21-freeze/board.part02b \
+            ci/p21-freeze/board.part03a \
+            ci/p21-freeze/board.part03b \
+            ci/p21-freeze/board.part04a \
+            ci/p21-freeze/board.part04b \
+            ci/p21-freeze/board.part05a \
+            ci/p21-freeze/board.part05b \
+            ci/p21-freeze/board.part06a \
+            ci/p21-freeze/board.part06b \
+            ci/p21-freeze/board.part07a \
+            ci/p21-freeze/board.part07b \
+            ci/p21-freeze/board.part08a \
+            ci/p21-freeze/board.part08b \
+            > /tmp/p21/RC18_RevB_SI.kicad_pcb
+          echo "891e782d0ee0e709095a9eb76eb8adfffe611d270d817a5ba8aeb098274f0a8c  /tmp/p21/RC18_RevB_SI.kicad_pcb" | sha256sum -c -
+
+      - name: Reconstruct native ERC0 project
+        run: |
+          set -euxo pipefail
+          mkdir -p hardware/rc18-p21-freeze
+          cat ci/p2-kicad10/p2-package.b64.part* | base64 -d > /tmp/p2.zip
+          echo "b3ca981044bb8607d98d2648eb9bfe2903048b8b03bf23c30fff45204a6adf51  /tmp/p2.zip" | sha256sum -c -
+          unzip -q -o /tmp/p2.zip -d hardware/rc18-p21-freeze
+          PROJ=hardware/rc18-p21-freeze/P2_KiCad10_ERC0_Footprint
+          python ci/p2-kicad10/fix_erc.py "$PROJ"
+          cp /tmp/p21/RC18_RevB_SI.kicad_pcb "$PROJ/RC18_RevB_SI.kicad_pcb"
+          python ci/p21-freeze/inject_rules.py "$PROJ/RC18_RevB_SI.kicad_pro"
+          chmod -R a+rwX ci-reports "$PROJ"
+          sha256sum "$PROJ/RC18_RevB_SI.kicad_pcb" > ci-reports/INPUT_BOARD_SHA256.txt
+
+      - name: Pull official KiCad 10.0.6
+        run: docker pull kicad/kicad:10.0.6
+
+      - name: Version
+        run: docker run --rm kicad/kicad:10.0.6 kicad-cli --version
+
+      - name: Run native ERC
+        id: erc
+        continue-on-error: true
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/work" \
+            -w /work/hardware/rc18-p21-freeze/P2_KiCad10_ERC0_Footprint \
+            kicad/kicad:10.0.6 \
+            kicad-cli sch erc \
+              --severity-all \
+              --exit-code-violations \
+              --output /work/ci-reports/RC18_P21_FREEZE_ERC.rpt \
+              RC18_RevB_SI.kicad_sch
+
+      - name: Run native DRC JSON with refill
+        id: drc
+        continue-on-error: true
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/work" \
+            -w /work/hardware/rc18-p21-freeze/P2_KiCad10_ERC0_Footprint \
+            kicad/kicad:10.0.6 \
+            kicad-cli pcb drc \
+              --format json \
+              --severity-all \
+              --all-track-errors \
+              --refill-zones \
+              --save-board \
+              --exit-code-violations \
+              --output /work/ci-reports/RC18_P21_FREEZE_DRC.json \
+              RC18_RevB_SI.kicad_pcb
+
+      - name: Export readable DRC report
+        if: always()
+        continue-on-error: true
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/work" \
+            -w /work/hardware/rc18-p21-freeze/P2_KiCad10_ERC0_Footprint \
+            kicad/kicad:10.0.6 \
+            kicad-cli pcb drc \
+              --severity-all \
+              --all-track-errors \
+              --output /work/ci-reports/RC18_P21_FREEZE_DRC.rpt \
+              RC18_RevB_SI.kicad_pcb || true
+
+      - name: Summarize DRC by cause
+        if: always()
+        run: |
+          python - <<'PY'
+          import json, collections, pathlib
+          p=pathlib.Path("ci-reports/RC18_P21_FREEZE_DRC.json")
+          if not p.exists():
+              print("NO_DRC_JSON")
+              raise SystemExit(0)
+          j=json.loads(p.read_text())
+          allr=list(j.get("violations",[]))+list(j.get("unconnected_items",[]))
+          c=collections.Counter(x.get("type","?") for x in allr)
+          print("KICAD_VERSION",j.get("kicad_version"))
+          print("VIOLATIONS",len(j.get("violations",[])))
+          print("UNCONNECTED",len(j.get("unconnected_items",[])))
+          for k,v in sorted(c.items(), key=lambda kv:(-kv[1],kv[0])):
+              print(f"{k}: {v}")
+          pathlib.Path("ci-reports/DRC_COUNTS.txt").write_text(
+              "\n".join([f"violations={len(j.get('violations',[]))}",
+                         f"unconnected={len(j.get('unconnected_items',[]))}"]+
+                        [f"{k}={v}" for k,v in sorted(c.items())])+"\n")
+          PY
+
+      - name: Record post-refill SHA
+        if: always()
+        run: |
+          sha256sum hardware/rc18-p21-freeze/P2_KiCad10_ERC0_Footprint/RC18_RevB_SI.kicad_pcb \
+            > ci-reports/POST_REFILL_BOARD_SHA256.txt || true
+          echo "ERC outcome: ${{ steps.erc.outcome }}"
+          echo "DRC outcome: ${{ steps.drc.outcome }}"
+          test -f ci-reports/DRC_COUNTS.txt && cat ci-reports/DRC_COUNTS.txt || true
+
+      - name: Upload freeze diagnostic
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rc18-p21-freeze-diagnostic
+          path: |
+            ci-reports/
+            hardware/rc18-p21-freeze/P2_KiCad10_ERC0_Footprint/
+          if-no-files-found: error
