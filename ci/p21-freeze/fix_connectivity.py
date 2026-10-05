@@ -56,6 +56,17 @@ def add_track(name,a,c,width,layer="F.Cu"):
     print("ADD",name,a,c,width,layer)
     return t
 
+def add_via(name,xy,size=0.6,drill=0.3):
+    v=pcbnew.PCB_VIA(b)
+    v.SetPosition(pt(*xy))
+    v.SetWidth(mm(size))
+    v.SetDrill(mm(drill))
+    v.SetLayerPair(b.GetLayerID("F.Cu"),b.GetLayerID("B.Cu"))
+    v.SetNet(net(name))
+    b.Add(v)
+    print("ADD_VIA",name,xy,size,drill)
+    return v
+
 def move_fp_with_tracks(ref,newxy):
     f=fp(ref)
     old={p.GetNumber():p.GetPosition() for p in f.Pads()}
