@@ -86,10 +86,11 @@ q3=pcbnew.ToMM(pad("Q101","3").GetPosition())
 add_track("Q101_GATE",tuple(q1),(15.5,24.25),0.15)
 add_track("12V_REV",tuple(q2),(16.525,24.6),0.35)
 # Split the long 12V_FUSED run at x=15.5 and connect drain to the split point.
-remove_track("12V_FUSED",(20.25,22.75),(10.0,22.75))
-add_track("12V_FUSED",(10.0,22.75),(15.5,22.75),0.35)
-add_track("12V_FUSED",(15.5,22.75),(20.25,22.75),0.35)
-add_track("12V_FUSED",tuple(q3),(15.5,22.75),0.35)
+remove_track("12V_FUSED",(20.25,22.75),(10.0,22.75),"B.Cu")
+add_track("12V_FUSED",(10.0,22.75),(15.5,22.75),0.35,"B.Cu")
+add_track("12V_FUSED",(15.5,22.75),(20.25,22.75),0.35,"B.Cu")
+add_via("12V_FUSED",(15.5,22.75),0.6,0.3)
+add_track("12V_FUSED",tuple(q3),(15.5,22.75),0.35,"F.Cu")
 
 # 2) D201 BAT54S physical pins: 1=LOW/GND, 2=HIGH/3V3, 3=SIG/VLINE_BIAS.
 set_pad_net("D201","1","GND")
