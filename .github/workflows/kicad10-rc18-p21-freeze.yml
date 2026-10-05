@@ -55,6 +55,7 @@ jobs:
           python ci/p2-kicad10/fix_erc.py "$PROJ"
           cp /tmp/p21/RC18_RevB_SI.kicad_pcb "$PROJ/RC18_RevB_SI.kicad_pcb"
           python ci/p21-freeze/inject_rules.py "$PROJ/RC18_RevB_SI.kicad_pro"
+          python ci/p21-freeze/fix_schematic_parity.py "$PROJ"
           chmod -R a+rwX ci-reports "$PROJ"
           sha256sum "$PROJ/RC18_RevB_SI.kicad_pcb" > ci-reports/INPUT_BOARD_SHA256.txt
 
@@ -70,6 +71,14 @@ jobs:
 
       - name: Version
         run: docker run --rm kicad/kicad:10.0.6 kicad-cli --version
+
+      - name: Apply connectivity repair batch 1
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/work" \
+            -w /work/hardware/rc18-p21-freeze/P2_KiCad10_ERC0_Footprint \
+            kicad/kicad:10.0.6 \
+            python3 /work/ci/p21-freeze/fix_connectivity.py RC18_RevB_SI.kicad_pcb
 
       - name: Run native ERC
         id: erc
