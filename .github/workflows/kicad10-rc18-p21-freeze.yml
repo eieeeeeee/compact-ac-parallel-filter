@@ -58,6 +58,13 @@ jobs:
           chmod -R a+rwX ci-reports "$PROJ"
           sha256sum "$PROJ/RC18_RevB_SI.kicad_pcb" > ci-reports/INPUT_BOARD_SHA256.txt
 
+      - name: Apply gate 1 via standardization
+        run: |
+          set -euxo pipefail
+          PROJ=hardware/rc18-p21-freeze/P2_KiCad10_ERC0_Footprint
+          python ci/p21-freeze/apply_via_standard.py "$PROJ/RC18_RevB_SI.kicad_pcb"
+          sha256sum "$PROJ/RC18_RevB_SI.kicad_pcb" > ci-reports/AFTER_VIA_STANDARD_SHA256.txt
+
       - name: Pull official KiCad 10.0.6
         run: docker pull kicad/kicad:10.0.6
 
