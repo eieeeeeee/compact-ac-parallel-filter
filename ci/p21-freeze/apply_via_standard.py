@@ -79,31 +79,42 @@ def block_end(s,start):
                 if depth==0: return i+1
     raise RuntimeError("unbalanced")
 
+def replace_field(block, name, value):
+    q=block.find("("+name+" ")
+    if q < 0:
+        raise RuntimeError("missing field "+name)
+    r=block.find(")",q)
+    if r < 0:
+        raise RuntimeError("unterminated field "+name)
+    return block[:q]+"("+name+" "+value+")"+block[r+1:]
+
 p=Path(sys.argv[1])
 s=p.read_text(encoding="utf-8")
-out=[]; pos=0; changed=[]
-while True:
-    m=re.search(r'(?m)^[ \\t]*\\(via\\b',s[pos:])
-    if not m:
-        out.append(s[pos:]); break
-    st=pos+m.start(); en=block_end(s,st)
-    out.append(s[pos:st])
+changed=[]
+for u in sorted(TARGETS):
+    tok='(uuid "'+u+'")'
+    pos=s.find(tok)
+    if pos < 0:
+        raise SystemExit("missing target UUID: "+u)
+    st=s.rfind("(via",0,pos)
+    if st < 0:
+        raise SystemExit("via start not found: "+u)
+    en=block_end(s,st)
     b=s[st:en]
-    um=re.search(r'\\(uuid "([^"]+)"\\)',b)
-    if um and um.group(1) in TARGETS:
-        old_size=re.search(r'\\(size ([0-9.]+)\\)',b)
-        old_drill=re.search(r'\\(drill ([0-9.]+)\\)',b)
-        if not old_size or not old_drill:
-            raise SystemExit("missing size/drill "+um.group(1))
-        b=re.sub(r'\\(size [0-9.]+\\)','(size 0.5)',b,count=1)
-        b=re.sub(r'\\(drill [0-9.]+\\)','(drill 0.3)',b,count=1)
-        changed.append((um.group(1),old_size.group(1),old_drill.group(1)))
-    out.append(b); pos=en
-new=''.join(out)
-missing=TARGETS-{x[0] for x in changed}
-if missing:
-    raise SystemExit("missing target UUIDs: "+",".join(sorted(missing)))
-p.write_text(new,encoding="utf-8")
+    if tok not in b:
+        raise SystemExit("UUID not inside via block: "+u)
+    def get_field(name):
+        q=b.find("("+name+" ")
+        r=b.find(")",q)
+        return b[q+len(name)+2:r]
+    old_size=get_field("size")
+    old_drill=get_field("drill")
+    b2=replace_field(b,"size","0.5")
+    b2=replace_field(b2,"drill","0.3")
+    s=s[:st]+b2+s[en:]
+    changed.append((u,old_size,old_drill))
+
+p.write_text(s,encoding="utf-8")
 print("VIA_STANDARD_CHANGED",len(changed))
 for u,sz,dr in changed:
     print(u,sz,dr,"-> 0.5 0.3")
