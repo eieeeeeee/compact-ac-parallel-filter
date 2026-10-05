@@ -29,14 +29,20 @@ def set_pad_net(ref,num,name):
 
 def find_track(name,a,c,layer="F.Cu"):
     aa=pt(*a); cc=pt(*c); lid=b.GetLayerID(layer); hits=[]
+    tol=mm(0.005)
+    def near(p,q):
+        return abs(p.x-q.x)<=tol and abs(p.y-q.y)<=tol
+    candidates=[]
     for t in b.GetTracks():
         if isinstance(t,pcbnew.PCB_VIA): continue
         if not isinstance(t,pcbnew.PCB_TRACK): continue
         if t.GetLayer()!=lid or t.GetNetname()!=name: continue
-        s=t.GetStart(); e=t.GetEnd()
-        if (s==aa and e==cc) or (s==cc and e==aa): hits.append(t)
+        ss=t.GetStart(); e=t.GetEnd()
+        candidates.append((tuple(pcbnew.ToMM(ss)),tuple(pcbnew.ToMM(e))))
+        if (near(ss,aa) and near(e,cc)) or (near(ss,cc) and near(e,aa)): hits.append(t)
     if len(hits)!=1:
-        raise RuntimeError(f"track {name} {a}->{c} {layer}: {len(hits)} hits")
+        nearby=[x for x in candidates if min(abs(x[0][0]-a[0])+abs(x[0][1]-a[1]),abs(x[1][0]-a[0])+abs(x[1][1]-a[1]))<2.0]
+        raise RuntimeError(f"track {name} {a}->{c} {layer}: {len(hits)} hits; nearby={nearby[:12]}")
     return hits[0]
 
 def remove_track(name,a,c,layer="F.Cu"):
