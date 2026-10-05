@@ -1,219 +1,218 @@
 #!/usr/bin/env python3
-import sys
-import pcbnew
+from pathlib import Path
+import sys, uuid, re
 
-P=sys.argv[1]
-b=pcbnew.LoadBoard(P)
+p=Path(sys.argv[1])
+s=p.read_text(encoding="utf-8")
+NS=uuid.UUID("7f0c9a4e-63ad-4d89-8ee0-998cb2912345")
 
-def mm(x): return pcbnew.FromMM(float(x))
-def pt(x,y): return pcbnew.VECTOR2I(mm(x),mm(y))
+def block_end(text,start):
+    d=0; ins=False; esc=False
+    for i in range(start,len(text)):
+        c=text[i]
+        if ins:
+            if esc: esc=False
+            elif c=="\\": esc=True
+            elif c=='"': ins=False
+        else:
+            if c=='"': ins=True
+            elif c=='(': d+=1
+            elif c==')':
+                d-=1
+                if d==0: return i+1
+    raise RuntimeError("unbalanced")
 
-def net(name):
-    n=b.FindNet(name)
-    if n is None: raise RuntimeError("net not found: "+name)
-    return n
+def remove_uuid(text,u,kind=None):
+    tok=f'(uuid "{u}")'
+    pos=text.find(tok)
+    if pos<0: raise RuntimeError("missing UUID "+u)
+    kinds=[kind] if kind else ["segment","via"]
+    st=-1
+    for k in kinds:
+        q=text.rfind("("+k,0,pos)
+        if q>st: st=q
+    if st<0: raise RuntimeError("block start not found "+u)
+    en=block_end(text,st)
+    if tok not in text[st:en]: raise RuntimeError("UUID outside block "+u)
+    return text[:st]+text[en:]
 
-def fp(ref):
-    for x in b.GetFootprints():
-        if x.GetReference()==ref: return x
-    raise RuntimeError("footprint not found: "+ref)
+def find_fp(text,ref):
+    pos=text.find(f'(property "Reference" "{ref}"')
+    if pos<0: raise RuntimeError("ref not found "+ref)
+    st=text.rfind("(footprint ",0,pos)
+    en=block_end(text,st)
+    return st,en,text[st:en]
 
-def pad(ref,num):
-    for p in fp(ref).Pads():
-        if p.GetNumber()==str(num): return p
-    raise RuntimeError(f"pad {ref}.{num} not found")
+def patch_fp_at(text,ref,new_at):
+    st,en,b=find_fp(text,ref)
+    m=re.search(r'\n\t\t\(at [^\n]+\)',b)
+    if not m: raise RuntimeError("footprint at not found "+ref)
+    b=b[:m.start()]+f'\n\t\t(at {new_at})'+b[m.end():]
+    return text[:st]+b+text[en:]
 
-def set_pad_net(ref,num,name):
-    p=pad(ref,num); p.SetNet(net(name))
-    print("PAD_NET",ref,num,name,pcbnew.ToMM(p.GetPosition()))
+def patch_pad_net_in_fp(text,ref,num,netname):
+    st,en,b=find_fp(text,ref)
+    marker=f'(pad "{num}" '
+    q=b.find(marker)
+    if q<0: raise RuntimeError(f"{ref} pad {num} not found")
+    ps=b.rfind("\t\t(pad ",0,q+1)
+    if ps<0: ps=q
+    pe=block_end(b,ps)
+    pb=b[ps:pe]
+    if "(net " in pb:
+        pb=re.sub(r'\n\t\t\t\(net "[^"]*"\)',f'\n\t\t\t(net "{netname}")',pb,count=1)
+    else:
+        u=pb.find("\n\t\t\t(uuid ")
+        if u<0: raise RuntimeError(f"{ref}.{num} uuid anchor missing")
+        pb=pb[:u]+f'\n\t\t\t(net "{netname}")'+pb[u:]
+    b=b[:ps]+pb+b[pe:]
+    return text[:st]+b+text[en:]
 
-def find_track(name,a,c,layer="F.Cu"):
-    aa=pt(*a); cc=pt(*c); lid=b.GetLayerID(layer); hits=[]
-    tol=mm(0.005)
-    def near(p,q):
-        return abs(p.x-q.x)<=tol and abs(p.y-q.y)<=tol
-    candidates=[]
-    for t in b.GetTracks():
-        if isinstance(t,pcbnew.PCB_VIA): continue
-        if not isinstance(t,pcbnew.PCB_TRACK): continue
-        if t.GetLayer()!=lid or t.GetNetname()!=name: continue
-        ss=t.GetStart(); e=t.GetEnd()
-        candidates.append((tuple(pcbnew.ToMM(ss)),tuple(pcbnew.ToMM(e))))
-        if (near(ss,aa) and near(e,cc)) or (near(ss,cc) and near(e,aa)): hits.append(t)
-    if len(hits)!=1:
-        nearby=[x for x in candidates if min(abs(x[0][0]-a[0])+abs(x[0][1]-a[1]),abs(x[1][0]-a[0])+abs(x[1][1]-a[1]))<2.0]
-        raise RuntimeError(f"track {name} {a}->{c} {layer}: {len(hits)} hits; nearby={nearby[:12]}")
-    return hits[0]
-
-def remove_track(name,a,c,layer="F.Cu"):
-    t=find_track(name,a,c,layer); b.Remove(t)
-    print("REMOVE",name,a,c,layer)
-
-def add_track(name,a,c,width,layer="F.Cu"):
-    t=pcbnew.PCB_TRACK(b)
-    t.SetStart(pt(*a)); t.SetEnd(pt(*c))
-    t.SetWidth(mm(width)); t.SetLayer(b.GetLayerID(layer)); t.SetNet(net(name))
-    b.Add(t); print("ADD",name,a,c,width,layer); return t
-
-def find_via(name,xy):
-    q=pt(*xy); hits=[]
-    for t in b.GetTracks():
-        if not isinstance(t,pcbnew.PCB_VIA): continue
-        if t.GetNetname()==name and t.GetPosition()==q: hits.append(t)
-    if len(hits)!=1: raise RuntimeError(f"via {name} {xy}: {len(hits)} hits")
-    return hits[0]
-
-def remove_via(name,xy):
-    v=find_via(name,xy); b.Remove(v); print("REMOVE_VIA",name,xy)
-
-def add_via(name,xy,size=0.5,drill=0.3):
-    v=pcbnew.PCB_VIA(b)
-    v.SetPosition(pt(*xy)); v.SetWidth(mm(size)); v.SetDrill(mm(drill))
-    v.SetLayerPair(b.GetLayerID("F.Cu"),b.GetLayerID("B.Cu"))
-    v.SetNet(net(name)); b.Add(v)
-    print("ADD_VIA",name,xy,size,drill); return v
-
-def move_fp_with_tracks(ref,newxy):
-    f=fp(ref); old={p.GetNumber():p.GetPosition() for p in f.Pads()}
-    f.SetPosition(pt(*newxy)); new={p.GetNumber():p.GetPosition() for p in f.Pads()}
+def patch_segment_endpoint(text,u,oldxy,newxy):
+    tok=f'(uuid "{u}")'; pos=text.find(tok)
+    if pos<0: raise RuntimeError("missing segment "+u)
+    st=text.rfind("(segment",0,pos); en=block_end(text,st); b=text[st:en]
+    old=f"({oldxy[0]} {oldxy[1]})"; new=f"({newxy[0]} {newxy[1]})"
+    # endpoint fields are '(start x y)' or '(end x y)'
     changed=0
-    for t in b.GetTracks():
-        if isinstance(t,pcbnew.PCB_VIA) or not isinstance(t,pcbnew.PCB_TRACK): continue
-        for n,o in old.items():
-            nn=new[n]
-            if t.GetStart()==o: t.SetStart(nn); changed+=1
-            if t.GetEnd()==o: t.SetEnd(nn); changed+=1
-    print("MOVE_FP",ref,pcbnew.ToMM(f.GetPosition()),"track_ends",changed)
+    for fld in ("start","end"):
+        needle=f"({fld} {oldxy[0]} {oldxy[1]})"
+        if needle in b:
+            b=b.replace(needle,f"({fld} {newxy[0]} {newxy[1]})",1); changed+=1
+    if changed!=1: raise RuntimeError(f"endpoint patch {u} changed={changed}")
+    return text[:st]+b+text[en:]
 
-# ---- Q101 cause group ----
-# Keep SOT-23 rotation=90 deg, move so source is close to 12V_REV and drain is clear of D102.
-q=fp("Q101")
-q.SetPosition(pt(14.9,23.6625))
-set_pad_net("Q101","1","Q101_GATE")
-set_pad_net("Q101","2","12V_REV")
-set_pad_net("Q101","3","12V_FUSED")
-q1=tuple(pcbnew.ToMM(pad("Q101","1").GetPosition()))
-q2=tuple(pcbnew.ToMM(pad("Q101","2").GetPosition()))
-q3=tuple(pcbnew.ToMM(pad("Q101","3").GetPosition()))
-print("Q101_PADS",q1,q2,q3)
+def uid(label): return str(uuid.uuid5(NS,label))
 
-# Remove the old lower Q101_GATE serpentine; retain the upper run from (15.25,24.625) to R101.
-for a,c in [
- ((16.15,22.0),(16.5,22.0)),
- ((16.375,22.125),(16.5,22.0)),
- ((16.375,22.25),(16.375,22.125)),
- ((15.5,23.125),(16.375,22.25)),
- ((15.5,24.25),(15.5,23.125)),
- ((15.375,24.375),(15.5,24.25)),
- ((15.375,24.5),(15.375,24.375)),
- ((15.25,24.625),(15.375,24.5)),
-]:
-    remove_track("Q101_GATE",a,c)
+def seg(label,net,a,c,width,layer="F.Cu"):
+    return f'''\n\t(segment
+\t\t(start {a[0]} {a[1]})
+\t\t(end {c[0]} {c[1]})
+\t\t(width {width})
+\t\t(locked yes)
+\t\t(layer "{layer}")
+\t\t(net "{net}")
+\t\t(uuid "{uid("seg:"+label)}")
+\t)'''
 
-# Gate: D102 -> below Q101 -> left side of drain -> Q101 gate; also join retained upper gate run.
-for a,c in [
- ((16.15,22.0),(16.7,20.9)),
- ((16.7,20.9),(14.3,20.9)),
- ((14.3,20.9),(14.3,24.6)),
- ((14.3,24.6),q1),
- (q1,(15.25,24.625)),
-]:
-    add_track("Q101_GATE",a,c,0.15)
+def via(label,net,xy,size=0.5,drill=0.3):
+    return f'''\n\t(via
+\t\t(at {xy[0]} {xy[1]})
+\t\t(size {size})
+\t\t(drill {drill})
+\t\t(layers "F.Cu" "B.Cu")
+\t\t(locked yes)
+\t\t(net "{net}")
+\t\t(uuid "{uid("via:"+label)}")
+\t)'''
 
-# Source: short direct join to existing 12V_REV endpoint.
-add_track("12V_REV",q2,(16.525,24.6),0.35)
+# 1. Physical pad/net parity on PCB.
+s=patch_fp_at(s,"Q101","14.9 23.6625 90")
+for n,nn in [("1","Q101_GATE"),("2","12V_REV"),("3","12V_FUSED")]:
+    s=patch_pad_net_in_fp(s,"Q101",n,nn)
+for n,nn in [("1","GND"),("2","3V3"),("3","VLINE_BIAS")]:
+    s=patch_pad_net_in_fp(s,"D201",n,nn)
 
-# Drain: drop to B.Cu below the package and join the existing 12V_FUSED backbone.
-remove_track("12V_FUSED",(20.25,22.75),(10.0,22.75),"B.Cu")
-add_track("12V_FUSED",(10.0,22.75),(14.9,22.75),0.35,"B.Cu")
-add_track("12V_FUSED",(14.9,22.75),(20.25,22.75),0.35,"B.Cu")
-add_via("12V_FUSED",(14.9,21.5),0.6,0.3)
-add_track("12V_FUSED",q3,(14.9,21.5),0.35,"F.Cu")
-add_track("12V_FUSED",(14.9,21.5),(14.9,22.75),0.35,"B.Cu")
+# 2. Delete exact Q101 conflict-path objects by UUID.
+REMOVE_SEG=[
+# Q101_GATE lower serpentine
+"c2ed973e-e2e3-401b-be03-00bc0f0251c5","0818cb2b-8392-475f-b1c6-af5a38a3ca93",
+"03ff4175-329f-4ff0-82ed-90e11d7bd786","3bc9dd77-528a-40bd-a9fd-f7e1d427d1ce",
+"eb9b7961-2a35-4300-9d1f-ecc69b2867c8","ea6c29fd-b88a-48a9-8cca-4eca388b3487",
+"2b7bd42f-2bf6-417c-8335-f3664967be74","38220afd-3ad2-4de9-99f9-6456a323e3a2",
+# BRANCH_EN F crossing chain + last B segment
+"9a9ec0c9-57b5-43e4-bb31-c02563a529b4","62e63520-d409-48a7-bc84-a7815db4da67",
+"f3f4d297-b721-4be6-bcf8-22601ecec26a","e1c81bb8-2658-48aa-a565-035d2ad6cbff",
+"095546de-343c-4ba6-8be0-4de4e195e148","4bdaf3c9-900a-4471-89b3-838665741ab0",
+"4731036a-bb06-4bd7-8faf-6da3810d7af0","a230f8dd-5fd4-49fa-9d24-65faf92e0952",
+"48f6b885-a47c-4d47-832f-ec82e55a7e9a","3f795b0b-5c71-4d88-af73-b141aaa9292e",
+"40c43245-6e14-4857-83d7-ccaf6af8591b","d4b570d0-4483-42cb-a5dc-a6730cc915d5",
+"eeda7219-71c4-40d9-b0c4-4a3eec6ae676","1406b82f-6044-409e-b262-b205b3c4cea7",
+"6c0b4cb3-681f-41df-8bbd-c5ffab983e05",
+# ISENSE_COMP2 F crossing chain + last B segment
+"390b4d11-fa8e-4fcf-bede-a4e04c490cf5","49734d92-ce61-4609-a8dc-0c1fed0c411a",
+"d295842b-caec-4a1f-9c14-572c31155ff0","2eebb895-b880-42a5-a302-36964b90c71f",
+"5113b932-4347-4f7c-b18e-1def4c9d41ba","607781ca-d5c7-4700-ba80-f43269fe0c41",
+"88f51a9c-5bc1-4686-8a47-24171dcd066f","8a216ffc-9b24-41bc-b5d9-e6bb86e0f8a4",
+"73f27399-eaac-436c-bd58-44f83b37b61a","2cc92eb3-0e90-4f2b-b8e0-95632fce7262",
+"72e6345a-b76a-47e2-9ec9-0b3193e980e1","62937b37-fdc1-4dd9-ba5e-8c260f89933c",
+"ece446b9-bd14-4d10-b7a5-d810897323fa","eed9bfac-6983-4a63-9888-439f54896e17",
+"3800ffd6-434f-4f78-928a-de8896907288","f4e57ad9-e254-47f1-90d9-84eb24ea976f",
+"41efb583-7222-4136-9bd3-ca3cb3d0526d",
+# 12V_IN central path
+"53aea10b-0310-4996-9eea-1d3d4ae409b6","a20c6722-c150-4a5f-9c2e-090876b3e656",
+"e46463e3-87c2-4bc6-9e40-e4e75597b4f9",
+# 12V_FUSED B backbone (split below)
+"e01b5c62-cc44-4164-af80-a5cf6bbf6297",
+# D201 VLINE_FINE crossing
+"18fd1d6a-cfa1-4a48-8bd4-6dc9fdf1cafa","4eafe467-ae05-48d3-b253-45c9fb98ba43",
+"a796a3d7-309d-413e-9117-4c23c6443862","26708c9d-ace9-4108-9862-f5fca251ae80",
+# X1 HSE_PF0 crossing
+"661da9ff-1dd0-446d-a3af-04c5ebd5235e","652cd806-8026-41aa-a313-791effa95604",
+"a04c39ed-9d97-4957-8269-88e844374f75",
+]
+for u in REMOVE_SEG: s=remove_uuid(s,u,"segment")
+for u in ["ca0bb152-89a7-4ac1-bbcc-e8cc596fbc06","c3e8cde2-216c-4d18-a382-4d2685d874a2"]:
+    s=remove_uuid(s,u,"via")
 
-# BRANCH_EN: move the F/B transition left of Q101 and bypass the former pad-crossing chain.
-remove_via("BRANCH_EN",(14.25,22.0))
-remove_track("BRANCH_EN",(14.5,21.75),(14.25,22.0),"B.Cu")
-for a,c in [
- ((14.25,22.0),(14.0,22.25)),((14.0,22.25),(13.75,22.5)),
- ((13.75,22.5),(13.5,22.75)),((13.5,22.75),(13.25,23.0)),
- ((13.25,23.0),(13.0,23.25)),((13.0,23.25),(12.75,23.5)),
- ((12.75,23.5),(12.5,23.75)),((12.5,23.75),(12.25,24.0)),
- ((12.25,24.0),(12.0,24.25)),((12.0,24.25),(11.75,24.5)),
- ((11.75,24.5),(11.5,24.75)),((11.5,24.75),(11.25,25.0)),
- ((11.25,25.0),(11.0,25.25)),((11.0,25.25),(10.75,25.25)),
-]:
-    remove_track("BRANCH_EN",a,c)
-add_via("BRANCH_EN",(10.5,22.0),0.5,0.3)
-for a,c in [
- ((14.5,21.75),(14.5,21.2)),((14.5,21.2),(10.5,21.2)),((10.5,21.2),(10.5,22.0))
-]:
-    add_track("BRANCH_EN",a,c,0.15,"B.Cu")
-add_track("BRANCH_EN",(10.5,22.0),(10.5,25.25),0.15,"F.Cu")
-add_track("BRANCH_EN",(10.5,25.25),(10.75,25.25),0.15,"F.Cu")
+# 3. R205 +0.20 mm and drag exactly the two attached segment endpoints.
+s=patch_fp_at(s,"R205","21 38.5")
+s=patch_segment_endpoint(s,"487737a2-5752-4358-8659-48438e9026eb",(20.175,38.3),(20.175,38.5))
+s=patch_segment_endpoint(s,"322800a6-f495-455c-92b4-620240764456",(21.825,38.3),(21.825,38.5))
 
-# ISENSE_COMP2: move transition far left/below Q101, preserving the upstream B.Cu and downstream F.Cu chains.
-remove_via("ISENSE_COMP2",(15.25,22.0))
-remove_track("ISENSE_COMP2",(15.5,22.0),(15.25,22.0),"B.Cu")
-for a,c in [
- ((15.25,22.0),(15.0,22.25)),((15.0,22.25),(14.75,22.5)),
- ((14.75,22.5),(14.5,22.75)),((14.5,22.75),(14.25,23.0)),
- ((14.25,23.0),(14.0,23.25)),((14.0,23.25),(13.75,23.5)),
- ((13.75,23.5),(13.5,23.75)),((13.5,23.75),(13.25,24.0)),
- ((13.25,24.0),(13.0,24.25)),((13.0,24.25),(12.75,24.5)),
- ((12.75,24.5),(12.5,24.75)),((12.5,24.75),(12.25,25.0)),
- ((12.25,25.0),(12.0,25.25)),((12.0,25.25),(11.75,25.5)),
- ((11.75,25.5),(11.5,25.5)),((11.5,25.5),(11.25,25.75)),
-]:
-    remove_track("ISENSE_COMP2",a,c)
-add_via("ISENSE_COMP2",(11.6,21.6),0.5,0.3)
-for a,c in [
- ((15.5,22.0),(15.5,20.9)),((15.5,20.9),(11.6,20.9)),((11.6,20.9),(11.6,21.6))
-]:
-    add_track("ISENSE_COMP2",a,c,0.12,"B.Cu")
-add_track("ISENSE_COMP2",(11.6,21.6),(11.6,25.75),0.12,"F.Cu")
-add_track("ISENSE_COMP2",(11.6,25.75),(11.25,25.75),0.12,"F.Cu")
+# 4. Add replacement routing.
+new=[]
+# Q101 gate/source/drain
+for i,(a,c) in enumerate([
+((16.15,22.0),(16.7,20.9)),((16.7,20.9),(14.3,20.9)),
+((14.3,20.9),(14.3,24.6)),((14.3,24.6),(13.95,24.6)),
+((13.95,24.6),(15.25,24.625)),
+]): new.append(seg(f"qgate{i}","Q101_GATE",a,c,0.15))
+new.append(seg("qsource","12V_REV",(15.85,24.6),(16.525,24.6),0.35))
+new.append(seg("qdrain_f","12V_FUSED",(14.9,22.725),(14.9,21.5),0.35))
+new.append(via("qdrain","12V_FUSED",(14.9,21.5),0.6,0.3))
+new.append(seg("qdrain_b","12V_FUSED",(14.9,21.5),(14.9,22.75),0.35,"B.Cu"))
+new.append(seg("12vfused_l","12V_FUSED",(10.0,22.75),(14.9,22.75),0.35,"B.Cu"))
+new.append(seg("12vfused_r","12V_FUSED",(14.9,22.75),(20.25,22.75),0.35,"B.Cu"))
 
-# 12V_IN: lower the central run so it clears Q101 drain and the new gate route.
-for a,c in [
- ((16.875,20.125),(16.25,20.75)),((16.25,20.75),(11.5,20.75)),((11.5,20.75),(11.0,21.25)),
-]:
-    remove_track("12V_IN",a,c)
-for a,c in [
- ((16.875,20.125),(16.5,20.2)),((16.5,20.2),(10.5,20.2)),((10.5,20.2),(11.0,21.25)),
-]:
-    add_track("12V_IN",a,c,0.35,"F.Cu")
+# BRANCH transition left
+new.append(via("branch_new","BRANCH_EN",(10.5,22.0),0.5,0.3))
+for i,(a,c,lay) in enumerate([
+((14.5,21.75),(14.5,21.2),"B.Cu"),((14.5,21.2),(10.5,21.2),"B.Cu"),
+((10.5,21.2),(10.5,22.0),"B.Cu"),((10.5,22.0),(10.5,25.25),"F.Cu"),
+((10.5,25.25),(10.75,25.25),"F.Cu"),
+]): new.append(seg(f"branch{i}","BRANCH_EN",a,c,0.15,lay))
 
-# ---- D201 / X1 / R205 / R605 closures retained from batch 1 ----
-set_pad_net("D201","1","GND")
-set_pad_net("D201","2","3V3")
-set_pad_net("D201","3","VLINE_BIAS")
-for a,c in [
- ((32.75,28.0),(33.0,28.25)),((33.0,28.25),(33.25,28.5)),
- ((33.25,28.5),(33.5,28.75)),((33.5,28.75),(33.75,29.0)),
-]:
-    remove_track("VLINE_FINE_VINM",a,c)
-for a,c in [
- ((32.75,28.0),(32.75,27.25)),((32.75,27.25),(34.75,27.25)),
- ((34.75,27.25),(34.75,29.0)),((34.75,29.0),(33.75,29.0)),
-]:
-    add_track("VLINE_FINE_VINM",a,c,0.12)
+# ISENSE transition left
+new.append(via("isense_new","ISENSE_COMP2",(11.6,21.6),0.5,0.3))
+for i,(a,c,lay) in enumerate([
+((15.5,22.0),(15.5,20.9),"B.Cu"),((15.5,20.9),(11.6,20.9),"B.Cu"),
+((11.6,20.9),(11.6,21.6),"B.Cu"),((11.6,21.6),(11.6,25.75),"F.Cu"),
+((11.6,25.75),(11.25,25.75),"F.Cu"),
+]): new.append(seg(f"isense{i}","ISENSE_COMP2",a,c,0.12,lay))
 
-for a,c in [
- ((5.25,33.0),(5.25,31.625)),((5.25,31.625),(5.625,31.25)),((5.625,31.25),(5.625,29.2)),
-]:
-    remove_track("HSE_PF0",a,c)
-for a,c in [
- ((5.25,33.0),(4.35,32.5)),((4.35,32.5),(4.35,30.0)),((4.35,30.0),(5.625,29.2)),
-]:
-    add_track("HSE_PF0",a,c,0.12)
+# 12V_IN lowered
+for i,(a,c) in enumerate([
+((16.875,20.125),(16.5,20.2)),((16.5,20.2),(10.5,20.2)),((10.5,20.2),(11.0,21.25)),
+]): new.append(seg(f"12vin{i}","12V_IN",a,c,0.35))
 
-r=fp("R205"); rpos=pcbnew.ToMM(r.GetPosition())
-move_fp_with_tracks("R205",(rpos[0],rpos[1]+0.20))
+# D201 VLINE_FINE detour
+for i,(a,c) in enumerate([
+((32.75,28.0),(32.75,27.25)),((32.75,27.25),(34.75,27.25)),
+((34.75,27.25),(34.75,29.0)),((34.75,29.0),(33.75,29.0)),
+]): new.append(seg(f"d201fine{i}","VLINE_FINE_VINM",a,c,0.12))
 
-p605=tuple(pcbnew.ToMM(pad("R605","2").GetPosition()))
-add_track("GND",p605,(17.175,11.0),0.15)
+# X1 DNP keepout detour
+for i,(a,c) in enumerate([
+((5.25,33.0),(4.35,32.5)),((4.35,32.5),(4.35,30.0)),((4.35,30.0),(5.625,29.2)),
+]): new.append(seg(f"x1hse{i}","HSE_PF0",a,c,0.12))
 
-b.BuildConnectivity()
-pcbnew.SaveBoard(P,b)
-print("CONNECTIVITY_Q101_BATCH2_APPLIED")
+# Explicit R605.2 -> GND via closure.
+new.append(seg("r605gnd","GND",(16.325,11.7),(17.175,11.0),0.15))
+
+anchor=s.find("\n\t(zone")
+if anchor<0: raise RuntimeError("zone insertion anchor not found")
+s=s[:anchor]+"".join(new)+s[anchor:]
+
+p.write_text(s,encoding="utf-8")
+print("CONNECTIVITY_TEXT_PATCH_APPLIED",len(REMOVE_SEG),"segments removed,",len(new),"items added")
