@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from pathlib import Path
-import re, sys
+import sys
 
 ROOT=Path(sys.argv[1])
 
@@ -20,21 +20,17 @@ def block_end(s,start):
                 if depth==0: return i+1
     raise RuntimeError("unbalanced s-expression")
 
-def symbol_block(s, marker):
-    st=s.find(marker)
-    if st<0: raise RuntimeError("missing symbol marker "+marker)
-    return st, block_end(s,st)
-
-def patch_def(path, marker, maps):
+def patch_def(path, marker, number_map):
     s=path.read_text(encoding="utf-8")
-    st,en=symbol_block(s,marker)
+    st=s.find(marker)
+    if st<0: raise RuntimeError(f"{path.name}: missing {marker}")
+    en=block_end(s,st)
     b=s[st:en]
-    for name,oldnum,newnum in maps:
-        pat=r'(\\(name "'+re.escape(name)+r'"[^\\n]*\\)\\s*\\(number ")'+re.escape(oldnum)+r'(")'
-        b2,n=re.subn(pat,lambda m:m.group(1)+newnum+m.group(2),b,count=1)
-        if n!=1:
-            raise RuntimeError(f"{path.name}: failed {name} {oldnum}->{newnum}")
-        b=b2
+    for old,new in number_map.items():
+        token=f'(number "{old}"'
+        if b.count(token)!=1:
+            raise RuntimeError(f"{path.name}: {marker}: expected one {token}, got {b.count(token)}")
+        b=b.replace(token,f'(number "{new}"',1)
     path.write_text(s[:st]+b+s[en:],encoding="utf-8")
 
 def patch_instance(path, ref, pinmap):
@@ -46,33 +42,22 @@ def patch_instance(path, ref, pinmap):
     en=block_end(s,st)
     b=s[st:en]
     for old,new in pinmap.items():
-        pat=r'\\(pin "'+re.escape(old)+r'"(\\s+\\(uuid [^)]+\\)\\))'
-        b2,n=re.subn(pat,lambda m:f'(pin "{new}"'+m.group(1),b,count=1)
-        if n!=1:
-            raise RuntimeError(f"{path.name}: {ref} pin {old}->{new} failed")
-        b=b2
+        token=f'(pin "{old}" '
+        if b.count(token)!=1:
+            raise RuntimeError(f"{path.name}: {ref}: expected one {token}, got {b.count(token)}")
+        b=b.replace(token,f'(pin "{new}" ',1)
     path.write_text(s[:st]+b+s[en:],encoding="utf-8")
 
-# Project library
 lib=ROOT/"RC18_Custom.kicad_sym"
-patch_def(lib,'(symbol "MOSFET_LOGIC"',[
-    ("G","G","1"),("D","D","3"),("S","S","2")
-])
-patch_def(lib,'(symbol "DUAL_CLAMP"',[
-    ("SIG","SIG","3"),("HIGH","HIGH","2"),("LOW","LOW","1")
-])
+patch_def(lib,'(symbol "MOSFET_LOGIC"',{"G":"1","D":"3","S":"2"})
+patch_def(lib,'(symbol "DUAL_CLAMP"',{"SIG":"3","HIGH":"2","LOW":"1"})
 
-# Embedded library copies in native child sheets
 p1=ROOT/"01_POWER_INPUT.kicad_sch"
-patch_def(p1,'(symbol "RC18_Custom:MOSFET_LOGIC"',[
-    ("G","G","1"),("D","D","3"),("S","S","2")
-])
+patch_def(p1,'(symbol "RC18_Custom:MOSFET_LOGIC"',{"G":"1","D":"3","S":"2"})
 patch_instance(p1,"Q101",{"G":"1","D":"3","S":"2"})
 
 p4=ROOT/"04_VLINE_ANALOG.kicad_sch"
-patch_def(p4,'(symbol "RC18_Custom:DUAL_CLAMP"',[
-    ("SIG","SIG","3"),("HIGH","HIGH","2"),("LOW","LOW","1")
-])
+patch_def(p4,'(symbol "RC18_Custom:DUAL_CLAMP"',{"SIG":"3","HIGH":"2","LOW":"1"})
 patch_instance(p4,"D201",{"SIG":"3","HIGH":"2","LOW":"1"})
 
 print("SCHEMATIC_PARITY_PATCHED Q101=1/3/2 D201=3/2/1 X1=DNP_TBD_EXCEPTION")
