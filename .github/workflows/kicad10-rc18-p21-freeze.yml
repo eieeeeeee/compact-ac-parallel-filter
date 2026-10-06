@@ -85,7 +85,7 @@ jobs:
             -v "${{ github.workspace }}:/work" \
             -w /work/hardware/rc18-p21-freeze/P2_KiCad10_ERC0_Footprint \
             kicad/kicad:10.0.6 \
-            python3 /work/ci/p2-1-layout/prepare_p21_dsn.py \
+            python3 /work/ci/p21-freeze/prepare_local_repair_dsn.py \
               /work/hardware/rc18-p21-freeze/P2_KiCad10_ERC0_Footprint/RC18_RevB_SI.kicad_pcb \
               /work/ci-reports/RC18_P21_REPAIR.dsn
 
