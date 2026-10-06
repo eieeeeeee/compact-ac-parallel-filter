@@ -139,6 +139,12 @@ jobs:
           PROJ=hardware/rc18-p21-freeze/P2_KiCad10_ERC0_Footprint
           python ci/p21-freeze/post_repair_batch1.py "$PROJ/RC18_RevB_SI.kicad_pcb"
 
+      - name: Apply post-repair connectivity batch 2
+        run: |
+          set -euxo pipefail
+          PROJ=hardware/rc18-p21-freeze/P2_KiCad10_ERC0_Footprint
+          python ci/p21-freeze/post_repair_batch2.py "$PROJ/RC18_RevB_SI.kicad_pcb"
+
       - name: Run native ERC
         id: erc
         continue-on-error: true
