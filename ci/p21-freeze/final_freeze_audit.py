@@ -103,10 +103,21 @@ while True:
 # Intentional courtyard-overlap body audit using actual F.Fab rectangles.
 def fp_geom(ref):
     b=fps[ref]
-    a=re.search(r'\n\s*\(at ([\d.\-]+) ([\d.\-]+)(?: ([\d.\-]+))?',b)
+    a=re.search(r'\\n\\s*\\(at ([\\d.\\-]+) ([\\d.\\-]+)(?: ([\\d.\\-]+))?',b)
     x,y=float(a.group(1)),float(a.group(2));rot=float(a.group(3) or 0)
-    m=re.search(r'\(fp_rect\s+\(start ([\d.\-]+) ([\d.\-]+)\)\s+\(end ([\d.\-]+) ([\d.\-]+)\).*?\(layer "F.Fab"\)',b,re.S)
-    x1,y1,x2,y2=map(float,m.groups());hx=abs(x2-x1)/2;hy=abs(y2-y1)/2
+    pos=0; rect=None
+    while True:
+        st=b.find("(fp_rect",pos)
+        if st<0:break
+        en=bend(b,st); rb=b[st:en]; pos=en
+        if '(layer "F.Fab")' not in rb:continue
+        m=re.search(r'\\(start ([\\d.\\-]+) ([\\d.\\-]+)\\)',rb)
+        n=re.search(r'\\(end ([\\d.\\-]+) ([\\d.\\-]+)\\)',rb)
+        if m and n:
+            rect=tuple(map(float,m.groups()+n.groups()))
+            break
+    assert rect is not None, ref
+    x1,y1,x2,y2=rect;hx=abs(x2-x1)/2;hy=abs(y2-y1)/2
     if int(rot)%180==90:hx,hy=hy,hx
     return x,y,hx,hy
 def body_gap(a,b):
