@@ -1,0 +1,57 @@
+name: KiCad 10 RC18 P2.1 CLEANUP3 Diagnostic
+
+on:
+  push:
+    branches:
+      - rc18-revb-si-p21-freeze
+    paths:
+      - 'ci/p21-freeze/test_cleanup3.py'
+      - '.github/workflows/kicad10-rc18-p21-cleanup3.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  cleanup3:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download CLEANUP2 baseline
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euxo pipefail
+          mkdir -p /tmp/base ci-reports hardware
+          curl -L --fail --retry 3 -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json"             "https://api.github.com/repos/eieeeeeee/compact-ac-parallel-filter/actions/artifacts/11399725723/zip" -o /tmp/base.zip
+          unzip -q -o /tmp/base.zip -d /tmp/base
+          SRC=/tmp/base/hardware/rc18-p21-cleanup2
+          test -f "$SRC/RC18_RevB_SI.kicad_pcb"
+          cp -a "$SRC" hardware/rc18-p21-cleanup3
+          chmod -R a+rwX hardware/rc18-p21-cleanup3 ci-reports
+      - name: Apply cleanup batch 3
+        run: python ci/p21-freeze/test_cleanup3.py hardware/rc18-p21-cleanup3/RC18_RevB_SI.kicad_pcb
+      - name: Pull KiCad
+        run: docker pull kicad/kicad:10.0.6
+      - name: Native DRC
+        run: |
+          set -euxo pipefail
+          docker run --rm -v "${{ github.workspace }}:/work" -w /work/hardware/rc18-p21-cleanup3 kicad/kicad:10.0.6             bash -lc 'set +e; kicad-cli pcb drc --format json --severity-all --all-track-errors --refill-zones --save-board --exit-code-violations --output /tmp/cleanup3.json RC18_RevB_SI.kicad_pcb; cp /tmp/cleanup3.json /work/hardware/rc18-p21-cleanup3/CLEANUP3_DRC.json; exit 0'
+          cp hardware/rc18-p21-cleanup3/CLEANUP3_DRC.json ci-reports/CLEANUP3_DRC.json
+          python - <<'PY'
+          import json,collections
+          j=json.load(open("ci-reports/CLEANUP3_DRC.json"));v=j.get("violations",[]);u=j.get("unconnected_items",[])
+          c=collections.Counter(x.get("type","?") for x in v+u)
+          print("VIOLATIONS",len(v));print("UNCONNECTED",len(u))
+          for k,n in sorted(c.items(),key=lambda kv:(-kv[1],kv[0])): print(f"{k}: {n}")
+          PY
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: rc18-p21-cleanup3-diagnostic
+          path: |
+            ci-reports/
+            hardware/rc18-p21-cleanup3/
+          if-no-files-found: error
