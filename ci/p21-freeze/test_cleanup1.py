@@ -69,7 +69,7 @@ def move_fp(ref,old,new):
 # dangling remnants
 remove_uuid("88f51a9c-5bc1-4686-8a47-24171dcd066f","segment")
 remove_uuid("48f6b885-a47c-4d47-832f-ec82e55a7e9a","segment")
-remove_uuid("c65a9274-1f39-494f-816d-31cfd8e156b2","via")
+remove_uuid("c65a9274-1f39-494f-816d-31cfd8e156b2","via")\nremove_uuid("131e032b-36e3-4fcd-93a4-e468679c59e6","segment")
 
 # 3V3 close via pairs: keep one via and redirect branch
 remove_uuid("65388c8c-e282-453c-a0fa-89a9f7d4c0d1","via")
@@ -90,17 +90,6 @@ remove_uuid("ebaf5aa0-31d8-481c-8485-6a4b1353d75c","via")
 remove_uuid("2bf9d278-4650-42b9-a268-c08837a6ba6b","segment")
 drag("cf08e55b-9771-4638-a255-ce3cc851a59c",(47.25,20.0),(46.8,20.0))
 
-# Move crowded upper resistors down while preserving edge clearance (pad edge 39.475 -> board edge 40 = 0.525 mm)
-move_fp("R204","30.3 38.3","30.3 39")
-drag("f00283e4-717c-472d-b24c-f151ad1c93ce",(29.475,38.3),(29.475,39.0))
-drag("c33dfdcd-55ca-4b3e-b40d-ff5e746e632a",(31.125,38.3),(31.125,39.0))
-move_fp("R205","21 38.5","21 39")
-drag("487737a2-5752-4358-8659-48438e9026eb",(20.175,38.5),(20.175,39.0))
-drag("322800a6-f495-455c-92b4-620240764456",(21.825,38.5),(21.825,39.0))
-move_fp("R206","27.2 38.3","27.2 39")
-drag("aac43a87-bf7f-475f-8bc1-597d9c217d2d",(26.375,38.3),(26.375,39.0))
-drag("952e08cb-7132-4a6b-981a-14745cb90d06",(28.025,38.3),(28.025,39.0))
-
-if s.count("(")!=s.count(")"): raise RuntimeError("paren mismatch")
+# Upper resistor placement left unchanged in CLEANUP1; handled separately.\n\nif s.count("(")!=s.count(")"): raise RuntimeError("paren mismatch")
 p.write_text(s,encoding="utf-8")
 print("CLEANUP1_APPLIED")
