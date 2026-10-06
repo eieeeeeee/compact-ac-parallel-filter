@@ -28,26 +28,34 @@ def remove_uuid(u,kind=None):
     en=bend(s,st)
     s=s[:st]+s[en:]
 
+def _field_xy(block,name):
+    q=block.find("(" + name + " ")
+    if q<0: return None,None,None
+    r=block.find(")",q)
+    vals=block[q+len(name)+2:r].split()
+    if len(vals)<2: return None,None,None
+    return q,r+1,(float(vals[0]),float(vals[1]))
+
 def move_via(u,old,new):
     global s
-    pos=s.find(f'(uuid "{u}")'); st=s.rfind("(via",0,pos); en=bend(s,st); b=s[st:en]
-    m=re.search(r'\\(at ([\\d.-]+) ([\\d.-]+)\\)',b)
-    if not m or abs(float(m.group(1))-old[0])>1e-6 or abs(float(m.group(2))-old[1])>1e-6:
+    pos=s.find(f'(uuid "{u}")'); st=s.rfind("(via",0,pos); en=bend(s,st); block=s[st:en]
+    q,r,xy=_field_xy(block,"at")
+    if xy is None or abs(xy[0]-old[0])>1e-6 or abs(xy[1]-old[1])>1e-6:
         raise RuntimeError("via at mismatch "+u)
-    b=b[:m.start()]+f"(at {new[0]} {new[1]})"+b[m.end():]
-    s=s[:st]+b+s[en:]
+    block=block[:q]+f"(at {new[0]} {new[1]})"+block[r:]
+    s=s[:st]+block+s[en:]
 
 def drag(u,old,new):
     global s
     pos=s.find(f'(uuid "{u}")')
     if pos<0: raise RuntimeError("seg missing "+u)
-    st=s.rfind("(segment",0,pos);en=bend(s,st);b=s[st:en];n=0
+    st=s.rfind("(segment",0,pos);en=bend(s,st);block=s[st:en];n=0
     for fld in ["start","end"]:
-        m=re.search(r'\\('+fld+r' ([\\d.-]+) ([\\d.-]+)\\)',b)
-        if m and abs(float(m.group(1))-old[0])<1e-6 and abs(float(m.group(2))-old[1])<1e-6:
-            b=b[:m.start()]+f"({fld} {new[0]} {new[1]})"+b[m.end():]; n+=1
+        q,r,xy=_field_xy(block,fld)
+        if xy is not None and abs(xy[0]-old[0])<1e-6 and abs(xy[1]-old[1])<1e-6:
+            block=block[:q]+f"({fld} {new[0]} {new[1]})"+block[r:]; n+=1
     if n!=1: raise RuntimeError(f"drag {u} changed={n}")
-    s=s[:st]+b+s[en:]
+    s=s[:st]+block+s[en:]
 
 def move_fp(ref,old,new):
     global s
