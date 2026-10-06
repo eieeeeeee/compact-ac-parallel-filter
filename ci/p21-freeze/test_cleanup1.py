@@ -31,9 +31,11 @@ def remove_uuid(u,kind=None):
 def move_via(u,old,new):
     global s
     pos=s.find(f'(uuid "{u}")'); st=s.rfind("(via",0,pos); en=bend(s,st); b=s[st:en]
-    needle=f"(at {old[0]} {old[1]})"
-    if needle not in b: raise RuntimeError("via at mismatch "+u)
-    b=b.replace(needle,f"(at {new[0]} {new[1]})",1); s=s[:st]+b+s[en:]
+    m=re.search(r'\\(at ([\\d.-]+) ([\\d.-]+)\\)',b)
+    if not m or abs(float(m.group(1))-old[0])>1e-6 or abs(float(m.group(2))-old[1])>1e-6:
+        raise RuntimeError("via at mismatch "+u)
+    b=b[:m.start()]+f"(at {new[0]} {new[1]})"+b[m.end():]
+    s=s[:st]+b+s[en:]
 
 def drag(u,old,new):
     global s
@@ -41,9 +43,9 @@ def drag(u,old,new):
     if pos<0: raise RuntimeError("seg missing "+u)
     st=s.rfind("(segment",0,pos);en=bend(s,st);b=s[st:en];n=0
     for fld in ["start","end"]:
-        a=f"({fld} {old[0]} {old[1]})"
-        if a in b:
-            b=b.replace(a,f"({fld} {new[0]} {new[1]})",1); n+=1
+        m=re.search(r'\\('+fld+r' ([\\d.-]+) ([\\d.-]+)\\)',b)
+        if m and abs(float(m.group(1))-old[0])<1e-6 and abs(float(m.group(2))-old[1])<1e-6:
+            b=b[:m.start()]+f"({fld} {new[0]} {new[1]})"+b[m.end():]; n+=1
     if n!=1: raise RuntimeError(f"drag {u} changed={n}")
     s=s[:st]+b+s[en:]
 
