@@ -98,7 +98,8 @@ for u in ["661da9ff-1dd0-446d-a3af-04c5ebd5235e","652cd806-8026-41aa-a313-791eff
     remove_uuid(u)
 for u in ["3a12b577-05bf-4b4e-ab8d-ed489f9d2ad2","8299d42a-f89d-4b6c-afca-7389e0b0ae71",
           "fd57a0e7-70f9-4c38-98bc-467432ef67ad","d2f2020e-3536-4389-bbb4-c395ad0a7d07",
-          "caccb88d-09f9-4487-ae58-d057aad94e55","6676aa40-9ae6-4e0d-b2a7-f0835fa1842b"]:
+          "caccb88d-09f9-4487-ae58-d057aad94e55","6676aa40-9ae6-4e0d-b2a7-f0835fa1842b",
+          "259974f7-7b65-4a11-98f5-f7011a57fd72"]:
     remove_uuid(u)
 
 # True R205/C6 physical short
