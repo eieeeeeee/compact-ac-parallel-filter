@@ -78,9 +78,10 @@ for old_uuid in [
     s=remove_uuid(s,old_uuid)
 
 for label,a,b in [
-    ("vline-fine-detour-a",(33.75,29.0),(32.9,28.8)),
-    ("vline-fine-detour-b",(32.9,28.8),(32.9,27.8)),
-    ("vline-fine-detour-c",(32.9,27.8),(32.75,28.0)),
+    ("vline-fine-detour-a",(33.75,29.0),(34.75,29.0)),
+    ("vline-fine-detour-b",(34.75,29.0),(34.75,27.8)),
+    ("vline-fine-detour-c",(34.75,27.8),(32.9,27.8)),
+    ("vline-fine-detour-d",(32.9,27.8),(32.75,28.0)),
 ]:
     u=uid(label)
     if f'(uuid "{u}")' not in s:
