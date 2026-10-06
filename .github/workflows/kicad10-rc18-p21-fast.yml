@@ -1,0 +1,84 @@
+name: KiCad 10 RC18 P2.1 FAST DRC
+
+on:
+  push:
+    branches:
+      - rc18-revb-si-p21-freeze
+    paths:
+      - 'ci/p21-freeze/post_repair_batch2.py'
+      - '.github/workflows/kicad10-rc18-p21-fast.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  fast-drc:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download known-good post-repair baseline artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euxo pipefail
+          mkdir -p /tmp/base ci-reports hardware
+          curl -L --fail --retry 3             -H "Authorization: Bearer $GH_TOKEN"             -H "Accept: application/vnd.github+json"             "https://api.github.com/repos/eieeeeeee/compact-ac-parallel-filter/actions/artifacts/11396242250/zip"             -o /tmp/base.zip
+          unzip -q -o /tmp/base.zip -d /tmp/base
+          SRC=/tmp/base/hardware/rc18-p21-freeze/P2_KiCad10_ERC0_Footprint
+          test -f "$SRC/RC18_RevB_SI.kicad_pcb"
+          cp -a "$SRC" hardware/rc18-p21-fast
+          sha256sum hardware/rc18-p21-fast/RC18_RevB_SI.kicad_pcb > ci-reports/FAST_BASELINE_SHA256.txt
+
+      - name: Apply connectivity batch 2
+        run: |
+          set -euxo pipefail
+          python ci/p21-freeze/post_repair_batch2.py hardware/rc18-p21-fast/RC18_RevB_SI.kicad_pcb
+
+      - name: Pull official KiCad 10.0.6
+        run: docker pull kicad/kicad:10.0.6
+
+      - name: Run native DRC
+        id: drc
+        continue-on-error: true
+        run: |
+          docker run --rm             -v "${{ github.workspace }}:/work"             -w /work/hardware/rc18-p21-fast             kicad/kicad:10.0.6             kicad-cli pcb drc               --format json               --severity-all               --all-track-errors               --refill-zones               --save-board               --exit-code-violations               --output /work/ci-reports/RC18_P21_FAST_DRC.json               RC18_RevB_SI.kicad_pcb
+
+      - name: Summarize
+        if: always()
+        run: |
+          python - <<'PY'
+          import json, collections, pathlib
+          p=pathlib.Path("ci-reports/RC18_P21_FAST_DRC.json")
+          if not p.exists():
+              print("NO_DRC_JSON")
+              raise SystemExit(0)
+          j=json.loads(p.read_text())
+          v=j.get("violations",[])
+          u=j.get("unconnected_items",[])
+          c=collections.Counter(x.get("type","?") for x in v+u)
+          print("VIOLATIONS",len(v))
+          print("UNCONNECTED",len(u))
+          for k,n in sorted(c.items(), key=lambda kv:(-kv[1],kv[0])):
+              print(f"{k}: {n}")
+          pathlib.Path("ci-reports/FAST_COUNTS.txt").write_text(
+              f"violations={len(v)}\nunconnected={len(u)}\n"+
+              "".join(f"{k}={n}\n" for k,n in sorted(c.items()))
+          )
+          PY
+          sha256sum hardware/rc18-p21-fast/RC18_RevB_SI.kicad_pcb > ci-reports/FAST_POST_SHA256.txt
+          echo "DRC outcome: ${{ steps.drc.outcome }}"
+          cat ci-reports/FAST_COUNTS.txt
+
+      - name: Upload fast diagnostic
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rc18-p21-fast-diagnostic
+          path: |
+            ci-reports/
+            hardware/rc18-p21-fast/
+          if-no-files-found: error
