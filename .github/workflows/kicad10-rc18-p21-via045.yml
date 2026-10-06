@@ -30,6 +30,7 @@ jobs:
           unzip -q -o /tmp/base.zip -d /tmp/base
           SRC=/tmp/base/hardware/rc18-p21-freeze/P2_KiCad10_ERC0_Footprint
           cp -a "$SRC" hardware/rc18-p21-via045
+          chmod -R a+rwX hardware/rc18-p21-via045 ci-reports
 
       - name: Apply 0.45/0.20 via diagnostic
         run: |
