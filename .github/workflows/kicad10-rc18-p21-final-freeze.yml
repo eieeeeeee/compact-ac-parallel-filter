@@ -159,7 +159,7 @@ jobs:
           set -euxo pipefail
           (
             cd hardware
-            zip -X -r /work/RC18_P21_FREEZE_FINAL.zip RC18_P21_FREEZE_FINAL
+            zip -X -r ../RC18_P21_FREEZE_FINAL.zip RC18_P21_FREEZE_FINAL
           )
           sha256sum RC18_P21_FREEZE_FINAL.zip | tee ci-reports/FINAL_ZIP_SHA256.txt
 
