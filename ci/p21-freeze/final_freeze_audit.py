@@ -103,7 +103,7 @@ while True:
 # Intentional courtyard-overlap body audit using actual F.Fab rectangles.
 def fp_geom(ref):
     b=fps[ref]
-    a=re.search(r'\\n\\s*\\(at ([\\d.\\-]+) ([\\d.\\-]+)(?: ([\\d.\\-]+))?',b)
+    a=re.search(r'\n\s*\(at ([\d.\-]+) ([\d.\-]+)(?: ([\d.\-]+))?',b)
     x,y=float(a.group(1)),float(a.group(2));rot=float(a.group(3) or 0)
     pos=0; rect=None
     while True:
@@ -111,8 +111,8 @@ def fp_geom(ref):
         if st<0:break
         en=bend(b,st); rb=b[st:en]; pos=en
         if '(layer "F.Fab")' not in rb:continue
-        m=re.search(r'\\(start ([\\d.\\-]+) ([\\d.\\-]+)\\)',rb)
-        n=re.search(r'\\(end ([\\d.\\-]+) ([\\d.\\-]+)\\)',rb)
+        m=re.search(r'\(start ([\d.\-]+) ([\d.\-]+)\)',rb)
+        n=re.search(r'\(end ([\d.\-]+) ([\d.\-]+)\)',rb)
         if m and n:
             rect=tuple(map(float,m.groups()+n.groups()))
             break
