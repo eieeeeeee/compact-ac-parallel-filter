@@ -47,6 +47,13 @@ jobs:
         run: |
           docker run --rm             -v "${{ github.workspace }}:/work"             -w /work/hardware/rc18-p21-fast             kicad/kicad:10.0.6             kicad-cli pcb drc               --format json               --severity-all               --all-track-errors               --refill-zones               --save-board               --exit-code-violations               --output /work/ci-reports/RC18_P21_FAST_DRC.json               RC18_RevB_SI.kicad_pcb
 
+      - name: Collect DRC JSON
+        if: always()
+        run: |
+          set -euxo pipefail
+          test -f hardware/rc18-p21-fast/RC18_P21_FAST_DRC.json
+          cp hardware/rc18-p21-fast/RC18_P21_FAST_DRC.json ci-reports/RC18_P21_FAST_DRC.json
+
       - name: Summarize
         if: always()
         run: |
