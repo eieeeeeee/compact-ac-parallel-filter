@@ -72,66 +72,12 @@ jobs:
       - name: Version
         run: docker run --rm kicad/kicad:10.0.6 kicad-cli --version
 
-      - name: Prepare local connectivity repair
+      - name: Apply deterministic connectivity fixes
         run: |
           set -euxo pipefail
           PROJ=hardware/rc18-p21-freeze/P2_KiCad10_ERC0_Footprint
-          python ci/p21-freeze/prep_local_repair.py "$PROJ/RC18_RevB_SI.kicad_pcb"
-
-      - name: Export protected repair DSN
-        run: |
-          set -euxo pipefail
-          docker run --rm \
-            -v "${{ github.workspace }}:/work" \
-            -w /work/hardware/rc18-p21-freeze/P2_KiCad10_ERC0_Footprint \
-            kicad/kicad:10.0.6 \
-            python3 /work/ci/p21-freeze/prepare_local_repair_dsn.py \
-              /work/hardware/rc18-p21-freeze/P2_KiCad10_ERC0_Footprint/RC18_RevB_SI.kicad_pcb \
-              /work/ci-reports/RC18_P21_REPAIR.dsn
-
-      - name: Set up Java 25
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '25'
-
-      - name: Download Freerouting 2.4.1
-        run: |
-          set -euxo pipefail
-          curl -L --fail --retry 3 -o /tmp/freerouting.jar \
-            https://github.com/freerouting/freerouting/releases/download/v2.4.1/freerouting-2.4.1.jar
-          echo "251101c3eeac22d7e7dfcf6796603279e5d1000283eb82d8f093780f7afc6aa9  /tmp/freerouting.jar" | sha256sum -c -
-
-      - name: Route only missing local connections
-        run: |
-          set -euxo pipefail
-          mkdir -p /tmp/freerouting
-          timeout 900s java -jar /tmp/freerouting.jar \
-            --gui.enabled=false \
-            --api_server.enabled=false \
-            --user_data_path=/tmp/freerouting \
-            --logging.file.enabled=false \
-            --logging.console.level=INFO \
-            --router.layers.routable=true,false,false,true \
-            --router.layers.preferred_direction_horizontal=true,false,false,false \
-            --router.copperToEdgeClearanceUm=500 \
-            -de "${{ github.workspace }}/ci-reports/RC18_P21_REPAIR.dsn" \
-            -do "${{ github.workspace }}/ci-reports/RC18_P21_REPAIR.ses" \
-            -mp 100 -mt 2 -da 2>&1 | tee ci-reports/FREEROUTING_REPAIR.log
-          test -s ci-reports/RC18_P21_REPAIR.ses
-
-      - name: Import repair SES and refill zones
-        run: |
-          set -euxo pipefail
-          docker run --rm \
-            -v "${{ github.workspace }}:/work" \
-            -w /work/hardware/rc18-p21-freeze/P2_KiCad10_ERC0_Footprint \
-            kicad/kicad:10.0.6 \
-            python3 /work/ci/p2-1-layout/import_p21_ses.py \
-              /work/hardware/rc18-p21-freeze/P2_KiCad10_ERC0_Footprint/RC18_RevB_SI.kicad_pcb \
-              /work/ci-reports/RC18_P21_REPAIR.ses \
-              /work/hardware/rc18-p21-freeze/P2_KiCad10_ERC0_Footprint/RC18_RevB_SI.kicad_pcb \
-              /work/hardware/rc18-p21-freeze/P2_KiCad10_ERC0_Footprint/RC18_RevB_SI.kicad_pro
+          python ci/p21-freeze/fix_connectivity.py "$PROJ/RC18_RevB_SI.kicad_pcb"
+          sha256sum "$PROJ/RC18_RevB_SI.kicad_pcb" > ci-reports/AFTER_CONNECTIVITY_FIXES_SHA256.txt
 
       - name: Run native ERC
         id: erc
