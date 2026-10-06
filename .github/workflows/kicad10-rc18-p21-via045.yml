@@ -26,7 +26,7 @@ jobs:
         run: |
           set -euxo pipefail
           mkdir -p /tmp/base ci-reports hardware
-          curl -L --fail --retry 3             -H "Authorization: Bearer $GH_TOKEN"             -H "Accept: application/vnd.github+json"             "https://api.github.com/repos/eieeeeeee/compact-ac-parallel-filter/actions/artifacts/11396242250/zip"             -o /tmp/base.zip
+          curl -L --fail --retry 3 -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/eieeeeeee/compact-ac-parallel-filter/actions/artifacts/11396242250/zip" -o /tmp/base.zip
           unzip -q -o /tmp/base.zip -d /tmp/base
           SRC=/tmp/base/hardware/rc18-p21-freeze/P2_KiCad10_ERC0_Footprint
           cp -a "$SRC" hardware/rc18-p21-via045
@@ -34,7 +34,7 @@ jobs:
       - name: Apply 0.45/0.20 via diagnostic
         run: |
           set -euxo pipefail
-          python ci/p21-freeze/test_via045.py             hardware/rc18-p21-via045/RC18_RevB_SI.kicad_pcb             hardware/rc18-p21-via045/RC18_RevB_SI.kicad_pro
+          python ci/p21-freeze/test_via045.py hardware/rc18-p21-via045/RC18_RevB_SI.kicad_pcb hardware/rc18-p21-via045/RC18_RevB_SI.kicad_pro
 
       - name: Pull official KiCad 10.0.6
         run: docker pull kicad/kicad:10.0.6
@@ -42,25 +42,9 @@ jobs:
       - name: Native DRC and persist JSON
         run: |
           set -euxo pipefail
-          docker run --rm             -v "${{ github.workspace }}:/work"             -w /work/hardware/rc18-p21-via045             kicad/kicad:10.0.6             bash -lc '
-              set +e
-              kicad-cli pcb drc                 --format json                 --severity-all                 --all-track-errors                 --refill-zones                 --save-board                 --exit-code-violations                 --output /tmp/via045.json                 RC18_RevB_SI.kicad_pcb
-              rc=$?
-              cp /tmp/via045.json /work/hardware/rc18-p21-via045/VIA045_DRC.json
-              python3 - <<PY
-import json, collections
-j=json.load(open("/tmp/via045.json"))
-v=j.get("violations",[])
-u=j.get("unconnected_items",[])
-c=collections.Counter(x.get("type","?") for x in v+u)
-print("VIOLATIONS",len(v))
-print("UNCONNECTED",len(u))
-for k,n in sorted(c.items(), key=lambda kv:(-kv[1],kv[0])):
-    print(f"{k}: {n}")
-PY
-              exit 0
-            '
+          docker run --rm -v "${{ github.workspace }}:/work" -w /work/hardware/rc18-p21-via045 kicad/kicad:10.0.6 bash -lc 'set +e; kicad-cli pcb drc --format json --severity-all --all-track-errors --refill-zones --save-board --exit-code-violations --output /tmp/via045.json RC18_RevB_SI.kicad_pcb; cp /tmp/via045.json /work/hardware/rc18-p21-via045/VIA045_DRC.json; exit 0'
           cp hardware/rc18-p21-via045/VIA045_DRC.json ci-reports/VIA045_DRC.json
+          python -c 'import json,collections; j=json.load(open("ci-reports/VIA045_DRC.json")); v=j.get("violations",[]); u=j.get("unconnected_items",[]); c=collections.Counter(x.get("type","?") for x in v+u); print("VIOLATIONS",len(v)); print("UNCONNECTED",len(u)); [print(f"{k}: {n}") for k,n in sorted(c.items(), key=lambda kv:(-kv[1],kv[0]))]'
 
       - name: Upload diagnostic
         uses: actions/upload-artifact@v4
