@@ -27,16 +27,41 @@ def via(label,x,y):
 \t\t(uuid "{uid(label)}")
 \t)\n'''
 
-def seg(label,a,b):
+def seg(label,a,b,net="VLINE_FINE_VINM"):
     return f'''\n\t(segment
 \t\t(start {a[0]} {a[1]})
 \t\t(end {b[0]} {b[1]})
 \t\t(width 0.1)
 \t\t(locked yes)
 \t\t(layer "F.Cu")
-\t\t(net "VLINE_FINE_VINM")
+\t\t(net "{net}")
 \t\t(uuid "{uid(label)}")
 \t)\n'''
+
+def block_end(text,start):
+    d=0; ins=False; esc=False
+    for i in range(start,len(text)):
+        ch=text[i]
+        if ins:
+            if esc: esc=False
+            elif ch=="\\": esc=True
+            elif ch=='"': ins=False
+        else:
+            if ch=='"': ins=True
+            elif ch=='(': d+=1
+            elif ch==')':
+                d-=1
+                if d==0: return i+1
+    raise RuntimeError("unbalanced")
+
+def remove_uuid(text,u):
+    tok=f'(uuid "{u}")'
+    pos=text.find(tok)
+    if pos<0:
+        raise RuntimeError("missing segment "+u)
+    st=text.rfind("(segment",0,pos)
+    en=block_end(text,st)
+    return text[:st]+text[en:]
 
 new=[]
 for i,(x,y) in enumerate(GND_POINTS):
@@ -44,10 +69,22 @@ for i,(x,y) in enumerate(GND_POINTS):
     if f'(uuid "{u}")' not in s:
         new.append(via(f"gnd-stitch-{i}",x,y))
 
-# Close the single deterministic VLINE_FINE_VINM gap reported by native DRC.
-u=uid("vline-fine-gap")
-if f'(uuid "{u}")' not in s:
-    new.append(seg("vline-fine-gap",(33.5,28.75),(33.0,28.25)))
+# Re-route VLINE_FINE_VINM around D201.1 GND instead of crossing its pad.
+# Remove the two short stubs that terminate inside the D201 clearance envelope.
+for old_uuid in [
+    "26708c9d-ace9-4108-9862-f5fca251ae80",
+    "18fd1d6a-cfa1-4a48-8bd4-6dc9fdf1cafa",
+]:
+    s=remove_uuid(s,old_uuid)
+
+for label,a,b in [
+    ("vline-fine-detour-a",(33.75,29.0),(32.8,29.0)),
+    ("vline-fine-detour-b",(32.8,29.0),(32.8,28.0)),
+    ("vline-fine-detour-c",(32.8,28.0),(32.75,28.0)),
+]:
+    u=uid(label)
+    if f'(uuid "{u}")' not in s:
+        new.append(seg(label,a,b))
 
 anchor=s.find("\n\t(zone")
 if anchor<0:
