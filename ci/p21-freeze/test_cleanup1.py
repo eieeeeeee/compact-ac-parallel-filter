@@ -69,7 +69,8 @@ def move_fp(ref,old,new):
 # dangling remnants
 remove_uuid("88f51a9c-5bc1-4686-8a47-24171dcd066f","segment")
 remove_uuid("48f6b885-a47c-4d47-832f-ec82e55a7e9a","segment")
-remove_uuid("c65a9274-1f39-494f-816d-31cfd8e156b2","via")\nremove_uuid("131e032b-36e3-4fcd-93a4-e468679c59e6","segment")
+remove_uuid("c65a9274-1f39-494f-816d-31cfd8e156b2","via")
+remove_uuid("131e032b-36e3-4fcd-93a4-e468679c59e6","segment")
 
 # 3V3 close via pairs: keep one via and redirect branch
 remove_uuid("65388c8c-e282-453c-a0fa-89a9f7d4c0d1","via")
