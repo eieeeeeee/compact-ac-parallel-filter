@@ -1,0 +1,177 @@
+name: KiCad 10 RC18 P2.1 FINAL FREEZE
+
+on:
+  push:
+    branches:
+      - rc18-revb-si-p21-freeze
+    paths:
+      - 'ci/p21-freeze/final_freeze_audit.py'
+      - '.github/workflows/kicad10-rc18-p21-final-freeze.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  final-freeze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download DRC0 cleanup4B baseline
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euxo pipefail
+          mkdir -p /tmp/base ci-reports hardware
+          curl -L --fail --retry 3 \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/eieeeeeee/compact-ac-parallel-filter/actions/artifacts/11417740036/zip" \
+            -o /tmp/base.zip
+          unzip -q -o /tmp/base.zip -d /tmp/base
+          SRC=/tmp/base/hardware/rc18-p21-cleanup4b
+          test -f "$SRC/RC18_RevB_SI.kicad_pcb"
+          cp -a "$SRC" hardware/RC18_P21_FREEZE_FINAL
+          chmod -R a+rwX hardware/RC18_P21_FREEZE_FINAL ci-reports
+          echo "2269d62e5fd32ef813d8e65dd50a8c20b7a5d45fa5c963718e56c0a02e732625  hardware/RC18_P21_FREEZE_FINAL/RC18_RevB_SI.kicad_pcb" | sha256sum -c -
+
+      - name: Pull official KiCad 10.0.6
+        run: docker pull kicad/kicad:10.0.6
+
+      - name: KiCad version
+        run: docker run --rm kicad/kicad:10.0.6 kicad-cli --version | tee ci-reports/KICAD_VERSION.txt
+
+      - name: Export final native netlist
+        run: |
+          set -euxo pipefail
+          docker run --rm \
+            -v "${{ github.workspace }}:/work" \
+            -w /work/hardware/RC18_P21_FREEZE_FINAL \
+            kicad/kicad:10.0.6 \
+            kicad-cli sch export netlist --format kicadxml \
+              -o /work/ci-reports/FINAL_NETLIST.xml \
+              RC18_RevB_SI.kicad_sch
+
+      - name: Schematic parity / pin map / rule audit
+        run: |
+          set -euxo pipefail
+          python ci/p21-freeze/final_freeze_audit.py \
+            hardware/RC18_P21_FREEZE_FINAL \
+            ci-reports/FINAL_NETLIST.xml | tee ci-reports/FINAL_PARITY_AUDIT.txt
+
+      - name: Enforced native ERC
+        run: |
+          set -euxo pipefail
+          docker run --rm \
+            -v "${{ github.workspace }}:/work" \
+            -w /work/hardware/RC18_P21_FREEZE_FINAL \
+            kicad/kicad:10.0.6 \
+            kicad-cli sch erc \
+              --severity-all \
+              --exit-code-violations \
+              --output /work/ci-reports/FINAL_ERC.rpt \
+              RC18_RevB_SI.kicad_sch
+          grep -q "ERC messages: 0  Errors 0  Warnings 0" ci-reports/FINAL_ERC.rpt
+
+      - name: Enforced native DRC
+        run: |
+          set -euxo pipefail
+          docker run --rm \
+            -v "${{ github.workspace }}:/work" \
+            -w /work/hardware/RC18_P21_FREEZE_FINAL \
+            kicad/kicad:10.0.6 \
+            kicad-cli pcb drc \
+              --format json \
+              --severity-all \
+              --all-track-errors \
+              --refill-zones \
+              --save-board \
+              --exit-code-violations \
+              --output /work/ci-reports/FINAL_DRC.json \
+              RC18_RevB_SI.kicad_pcb
+          python - <<'PY'
+          import json
+          j=json.load(open("ci-reports/FINAL_DRC.json"))
+          v=j.get("violations",[])
+          u=j.get("unconnected_items",[])
+          print("FINAL_DRC_VIOLATIONS",len(v))
+          print("FINAL_UNCONNECTED",len(u))
+          assert len(v)==0, v
+          assert len(u)==0, u
+          PY
+
+      - name: Export readable final DRC
+        run: |
+          set -euxo pipefail
+          docker run --rm \
+            -v "${{ github.workspace }}:/work" \
+            -w /work/hardware/RC18_P21_FREEZE_FINAL \
+            kicad/kicad:10.0.6 \
+            kicad-cli pcb drc \
+              --severity-all \
+              --all-track-errors \
+              --exit-code-violations \
+              --output /work/ci-reports/FINAL_DRC.rpt \
+              RC18_RevB_SI.kicad_pcb
+
+      - name: Build freeze audit and manifest
+        run: |
+          set -euxo pipefail
+          FINAL_SHA=$(sha256sum hardware/RC18_P21_FREEZE_FINAL/RC18_RevB_SI.kicad_pcb | awk '{print $1}')
+          cat > hardware/RC18_P21_FREEZE_FINAL/P2_1_FREEZE_AUDIT.md <<EOF
+          # RC18 Rev.B-SI P2.1 FREEZE
+
+          Status: **FROZEN / NATIVE ERC 0 / NATIVE DRC 0 / Unconnected 0**
+
+          - KiCad: 10.0.6
+          - Final PCB SHA-256: \`$FINAL_SHA\`
+          - Schematic refs: 135
+          - PCB refs: 133
+          - Intentional schematic-only DNP refs: U901, K301
+          - Track minimum: 0.10 mm
+          - Via minimum: 0.45 / 0.20 mm
+          - Via annular minimum: 0.10 mm
+          - Hole-to-copper rule: 0.20 mm
+          - Hole-to-hole rule: 0.25 mm
+          - Copper-to-edge rule: 0.50 mm
+          - Courtyard-overlap check: intentionally ignored for this frozen dense prototype only.
+          - Intentional courtyard pairs: R201/R204, R201/R206, R204/R211, C6/R205.
+          - F.Fab body audit: all four pairs physically non-overlapping; minimum body gap 0.075 mm.
+          - The four offending silkscreen strokes were removed rather than waived.
+
+          Native reports are included as FINAL_ERC.rpt and FINAL_DRC.json / FINAL_DRC.rpt.
+          EOF
+          cp ci-reports/FINAL_ERC.rpt hardware/RC18_P21_FREEZE_FINAL/
+          cp ci-reports/FINAL_DRC.json hardware/RC18_P21_FREEZE_FINAL/
+          cp ci-reports/FINAL_DRC.rpt hardware/RC18_P21_FREEZE_FINAL/
+          cp ci-reports/FINAL_PARITY_AUDIT.txt hardware/RC18_P21_FREEZE_FINAL/
+          cp ci-reports/KICAD_VERSION.txt hardware/RC18_P21_FREEZE_FINAL/
+          (
+            cd hardware/RC18_P21_FREEZE_FINAL
+            find . -type f ! -name SHA256SUMS_P2_1_FREEZE.txt -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS_P2_1_FREEZE.txt
+          )
+
+      - name: Package final freeze ZIP
+        run: |
+          set -euxo pipefail
+          (
+            cd hardware
+            zip -X -r /work/RC18_P21_FREEZE_FINAL.zip RC18_P21_FREEZE_FINAL
+          )
+          sha256sum RC18_P21_FREEZE_FINAL.zip | tee ci-reports/FINAL_ZIP_SHA256.txt
+
+      - name: Upload final freeze
+        uses: actions/upload-artifact@v4
+        with:
+          name: RC18_P21_FREEZE_FINAL
+          path: |
+            RC18_P21_FREEZE_FINAL.zip
+            ci-reports/FINAL_ZIP_SHA256.txt
+            ci-reports/FINAL_ERC.rpt
+            ci-reports/FINAL_DRC.json
+            ci-reports/FINAL_DRC.rpt
+            ci-reports/FINAL_PARITY_AUDIT.txt
+          if-no-files-found: error
