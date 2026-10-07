@@ -38,6 +38,15 @@ jobs:
 
           while IFS= read -r f; do copy_dep "$f"; done < <(lddtree -l /usr/bin/kicad-cli | sort -u)
 
+          # ERC/DRC load these kiface modules only when real project files are opened.
+          # Include their full recursive runtime dependencies as well.
+          for kiface in /usr/bin/_*.kiface; do
+            [ -f "$kiface" ] || continue
+            mkdir -p "$ROOT/usr/bin"
+            cp -aL "$kiface" "$ROOT$kiface"
+            while IFS= read -r dep; do copy_dep "$dep"; done < <(lddtree -l "$kiface" 2>/dev/null | sort -u || true)
+          done
+
           # KiCad runtime modules, but NOT symbol/footprint/3D/template libraries.
           for d in /usr/lib/x86_64-linux-gnu/kicad /usr/lib/kicad /usr/lib/x86_64-linux-gnu/wx; do
             if [ -d "$d" ]; then
