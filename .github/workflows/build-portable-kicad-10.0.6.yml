@@ -54,7 +54,6 @@ jobs:
           [ -f /etc/resolv.conf ] && cp -aL /etc/resolv.conf "$ROOT/etc/"
           [ -d /usr/share/locale ] && cp -a /usr/share/locale "$ROOT/usr/share/"
 
-          # Include all package-owned KiCad runtime paths that may be dlopen'ed.
           for pkg in kicad kicad-libraries kicad-footprints kicad-symbols kicad-templates; do
             if dpkg -s "$pkg" >/dev/null 2>&1; then
               dpkg -L "$pkg" | while read -r p; do
@@ -69,22 +68,60 @@ jobs:
           done
 
           printf '10.0.6\n' > "$ROOT/KICAD_EXPECTED_VERSION.txt"
-          find "$ROOT" -type f -print0 | sort -z | xargs -0 sha256sum > "$ROOT/SHA256SUMS_PORTABLE.txt"
 
-      - name: Prove bundle runs in isolated chroot
+      - name: Prove and self-repair bundle in isolated chroot
         run: |
           set -euxo pipefail
-          sudo chroot "$PWD/kicad-root" /usr/bin/kicad-cli --version | tee portable-version.txt
+          ROOT="$PWD/kicad-root"
+
+          copy_runtime_lib() {
+            local lib="$1"
+            local p
+            p="$(ldconfig -p | awk -v lib="$lib" '$1==lib {print $NF; exit}')"
+            if [ -z "$p" ] || [ ! -e "$p" ]; then
+              echo "Unable to locate missing runtime library: $lib" >&2
+              return 1
+            fi
+            mkdir -p "$ROOT$(dirname "$p")"
+            cp -aL "$p" "$ROOT$p"
+            echo "Added runtime library: $lib <- $p"
+          }
+
+          run_with_repair() {
+            local out rc lib
+            for attempt in $(seq 1 40); do
+              set +e
+              out="$(sudo chroot "$ROOT" "$@" 2>&1)"
+              rc=$?
+              set -e
+              if [ "$rc" -eq 0 ]; then
+                printf '%s\n' "$out"
+                return 0
+              fi
+              lib="$(printf '%s\n' "$out" | sed -n 's/.*error while loading shared libraries: \([^:]*\):.*/\1/p' | head -n1)"
+              if [ -z "$lib" ]; then
+                printf '%s\n' "$out" >&2
+                return "$rc"
+              fi
+              copy_runtime_lib "$lib"
+            done
+            echo "Exceeded runtime dependency repair attempts" >&2
+            return 99
+          }
+
+          run_with_repair /usr/bin/kicad-cli --version | tee portable-version.txt
           grep -q '^10.0.6' portable-version.txt
-          sudo chroot "$PWD/kicad-root" /usr/bin/kicad-cli sch erc --help > portable-erc-help.txt
-          sudo chroot "$PWD/kicad-root" /usr/bin/kicad-cli pcb drc --help > portable-drc-help.txt
+          run_with_repair /usr/bin/kicad-cli sch erc --help > portable-erc-help.txt
+          run_with_repair /usr/bin/kicad-cli pcb drc --help > portable-drc-help.txt
           grep -q -- '--exit-code-violations' portable-erc-help.txt
           grep -q -- '--schematic-parity' portable-drc-help.txt
 
       - name: Package portable bundle
         run: |
           set -euxo pipefail
-          sudo tar --numeric-owner -C kicad-root -caf KICAD_10_0_6_PORTABLE_CHROOT.tar.zst .
+          ROOT="$PWD/kicad-root"
+          find "$ROOT" -type f -print0 | sort -z | xargs -0 sha256sum > "$ROOT/SHA256SUMS_PORTABLE.txt"
+          sudo tar --numeric-owner -C "$ROOT" -caf KICAD_10_0_6_PORTABLE_CHROOT.tar.zst .
           sha256sum KICAD_10_0_6_PORTABLE_CHROOT.tar.zst > KICAD_10_0_6_PORTABLE_CHROOT_SHA256.txt
           ls -lh KICAD_10_0_6_PORTABLE_CHROOT.tar.zst
 
