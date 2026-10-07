@@ -41,12 +41,16 @@ jobs:
           echo "$RUN_ID" | tee R1_2_SOURCE_RUN_ID.txt
           mkdir prior
           gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --name rc18-r12-native-gate-evidence --dir prior
-          test -f prior/RC18_P21_MANUFACTURING_MASTER_R1_2.zip
-          sha256sum prior/RC18_P21_MANUFACTURING_MASTER_R1_2.zip | tee R1_2_SOURCE_MASTER_SHA256.txt
+          MASTER_ZIP="$(find prior -type f -name 'RC18_P21_MANUFACTURING_MASTER_R1_2.zip' -print -quit)"
+          test -n "$MASTER_ZIP"
+          echo "$MASTER_ZIP" | tee R1_2_SOURCE_MASTER_PATH.txt
+          sha256sum "$MASTER_ZIP" | tee R1_2_SOURCE_MASTER_SHA256.txt
           grep -q '^c675bd443d6fa852dfa72c96ca9fb4488181913c9f2fc60e008870a9d65e6f69 ' R1_2_SOURCE_MASTER_SHA256.txt
           mkdir source
-          unzip -q prior/RC18_P21_MANUFACTURING_MASTER_R1_2.zip -d source
-          test -d source/RC18_P21_MANUFACTURING_MASTER_R1_2
+          unzip -q "$MASTER_ZIP" -d source
+          MASTER_DIR="$(find source -type d -name 'RC18_P21_MANUFACTURING_MASTER_R1_2' -print -quit)"
+          test -n "$MASTER_DIR"
+          echo "$MASTER_DIR" | tee R1_2_SOURCE_MASTER_DIR.txt
 
       - name: Apply exact R2.3.1A six-issue patch
         run: |
@@ -54,7 +58,8 @@ jobs:
           base64 -d r231a.patch.gz.b64 | gunzip > r231a.patch
           sha256sum r231a.patch | tee R2_3_1A_PATCH_SHA256.txt
           mkdir -p work
-          cp -a source/RC18_P21_MANUFACTURING_MASTER_R1_2 work/RC18_R2_3_1A_CANDIDATE
+          MASTER_DIR="$(cat R1_2_SOURCE_MASTER_DIR.txt)"
+          cp -a "$MASTER_DIR" work/RC18_R2_3_1A_CANDIDATE
           patch --batch --fuzz=0 -p1 -d work/RC18_R2_3_1A_CANDIDATE < r231a.patch
           cp run_r231a_native_gate.py work/RC18_R2_3_1A_CANDIDATE/
           test "$(grep -c '(footprint ' work/RC18_R2_3_1A_CANDIDATE/RC18_RevB_SI.kicad_pcb)" -ge 133
@@ -75,6 +80,8 @@ jobs:
           cp -f KICAD_NATIVE_VERSION.txt collected/ 2>/dev/null || true
           cp -f R1_2_SOURCE_RUN_ID.txt collected/ 2>/dev/null || true
           cp -f R1_2_SOURCE_MASTER_SHA256.txt collected/ 2>/dev/null || true
+          cp -f R1_2_SOURCE_MASTER_PATH.txt collected/ 2>/dev/null || true
+          cp -f R1_2_SOURCE_MASTER_DIR.txt collected/ 2>/dev/null || true
           cp -f R2_3_1A_PATCH_SHA256.txt collected/ 2>/dev/null || true
           cp -rf work/RC18_R2_3_1A_CANDIDATE/R2_3_1A_NATIVE_RESULTS collected/ 2>/dev/null || true
           cp -f work/RC18_R2_3_1A_CANDIDATE/RC18_RevB_SI.kicad_pcb collected/candidate-core/ 2>/dev/null || true
