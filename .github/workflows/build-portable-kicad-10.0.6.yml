@@ -22,20 +22,23 @@ jobs:
           kicad-cli --version
           test "$(kicad-cli --version | awk '{print $1}')" = "10.0.6"
 
-      - name: Build self-contained chroot bundle
+      - name: Build slim self-contained chroot bundle
         run: |
           set -euxo pipefail
           ROOT="$PWD/kicad-root"
           mkdir -p "$ROOT"/{usr/bin,usr/share,etc,tmp,root,lib,lib64,usr/lib}
           cp -a /usr/bin/kicad-cli "$ROOT/usr/bin/"
+
           copy_dep() {
             local f="$1"
             [ -e "$f" ] || return 0
             mkdir -p "$ROOT$(dirname "$f")"
             cp -aL "$f" "$ROOT$f"
           }
+
           while IFS= read -r f; do copy_dep "$f"; done < <(lddtree -l /usr/bin/kicad-cli | sort -u)
 
+          # KiCad runtime modules, but NOT symbol/footprint/3D/template libraries.
           for d in /usr/lib/x86_64-linux-gnu/kicad /usr/lib/kicad /usr/lib/x86_64-linux-gnu/wx; do
             if [ -d "$d" ]; then
               mkdir -p "$ROOT$d"
@@ -46,27 +49,27 @@ jobs:
             fi
           done
 
-          cp -a /usr/share/kicad "$ROOT/usr/share/"
-          [ -d /usr/share/fonts ] && cp -a /usr/share/fonts "$ROOT/usr/share/"
-          [ -d /etc/fonts ] && { mkdir -p "$ROOT/etc"; cp -a /etc/fonts "$ROOT/etc/"; }
-          [ -f /etc/nsswitch.conf ] && cp -a /etc/nsswitch.conf "$ROOT/etc/"
-          [ -f /etc/hosts ] && cp -a /etc/hosts "$ROOT/etc/"
-          [ -f /etc/resolv.conf ] && cp -aL /etc/resolv.conf "$ROOT/etc/"
-          [ -d /usr/share/locale ] && cp -a /usr/share/locale "$ROOT/usr/share/"
-
-          for pkg in kicad kicad-libraries kicad-footprints kicad-symbols kicad-templates; do
-            if dpkg -s "$pkg" >/dev/null 2>&1; then
-              dpkg -L "$pkg" | while read -r p; do
-                if [ -f "$p" ]; then
-                  mkdir -p "$ROOT$(dirname "$p")"
-                  cp -aL "$p" "$ROOT$p"
-                elif [ -d "$p" ]; then
-                  mkdir -p "$ROOT$p"
-                fi
-              done
+          # Copy only resources owned by the main kicad package.
+          dpkg -L kicad | while read -r p; do
+            case "$p" in
+              /usr/share/kicad/footprints/*|/usr/share/kicad/symbols/*|/usr/share/kicad/3dmodels/*|/usr/share/kicad/template/*|/usr/share/doc/*)
+                continue
+                ;;
+            esac
+            if [ -f "$p" ]; then
+              mkdir -p "$ROOT$(dirname "$p")"
+              cp -aL "$p" "$ROOT$p"
+            elif [ -d "$p" ]; then
+              mkdir -p "$ROOT$p"
             fi
           done
 
+          # Minimal font/config support.
+          mkdir -p "$ROOT/usr/share/fonts/truetype/dejavu" "$ROOT/etc"
+          cp -a /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf "$ROOT/usr/share/fonts/truetype/dejavu/" 2>/dev/null || true
+          cp -a /usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf "$ROOT/usr/share/fonts/truetype/dejavu/" 2>/dev/null || true
+          [ -d /etc/fonts ] && cp -a /etc/fonts "$ROOT/etc/"
+          [ -f /etc/nsswitch.conf ] && cp -a /etc/nsswitch.conf "$ROOT/etc/"
           printf '10.0.6\n' > "$ROOT/KICAD_EXPECTED_VERSION.txt"
 
       - name: Prove and self-repair bundle in isolated chroot
@@ -121,9 +124,11 @@ jobs:
           set -euxo pipefail
           ROOT="$PWD/kicad-root"
           find "$ROOT" -type f -print0 | sort -z | xargs -0 sha256sum > "$ROOT/SHA256SUMS_PORTABLE.txt"
-          sudo tar --numeric-owner -C "$ROOT" -caf KICAD_10_0_6_PORTABLE_CHROOT.tar.zst .
+          sudo tar --numeric-owner -C "$ROOT" -I 'zstd -19 -T0' -cf KICAD_10_0_6_PORTABLE_CHROOT.tar.zst .
           sha256sum KICAD_10_0_6_PORTABLE_CHROOT.tar.zst > KICAD_10_0_6_PORTABLE_CHROOT_SHA256.txt
+          du -sh "$ROOT"
           ls -lh KICAD_10_0_6_PORTABLE_CHROOT.tar.zst
+          test "$(stat -c %s KICAD_10_0_6_PORTABLE_CHROOT.tar.zst)" -lt 500000000
 
       - name: Upload portable KiCad artifact
         uses: actions/upload-artifact@v4
