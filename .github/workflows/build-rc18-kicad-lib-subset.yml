@@ -1,0 +1,47 @@
+name: Build RC18 KiCad Standard Library Subset
+
+on:
+  push:
+    branches:
+      - rc18-r12-native-gate-20261007
+    paths:
+      - '.github/workflows/build-rc18-kicad-lib-subset.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Install exact KiCad 10.0.6 libraries
+        run: |
+          set -euxo pipefail
+          sudo apt-get update
+          sudo apt-get install -y software-properties-common
+          sudo add-apt-repository -y ppa:kicad/kicad-10.0-releases
+          sudo apt-get update
+          sudo apt-get install -y kicad
+          test "$(kicad-cli --version | awk '{print $1}')" = "10.0.6"
+
+      - name: Collect only RC18-referenced standard libraries
+        run: |
+          set -euxo pipefail
+          ROOT="$PWD/rc18-kicad-libs"
+          mkdir -p "$ROOT/usr/share/kicad/footprints" "$ROOT/usr/share/kicad/symbols"
+          cp -a /usr/share/kicad/symbols/power.kicad_sym "$ROOT/usr/share/kicad/symbols/"
+          for lib in             Capacitor_SMD Capacitor_THT Connector_JST Crystal Diode_SMD Fuse             Inductor_SMD LED_SMD Package_QFP Package_TO_SOT_SMD Resistor_SMD
+          do
+            cp -a "/usr/share/kicad/footprints/$lib.pretty" "$ROOT/usr/share/kicad/footprints/"
+          done
+          find "$ROOT" -type f -print0 | sort -z | xargs -0 sha256sum > "$ROOT/SHA256SUMS_RC18_KICAD_LIB_SUBSET.txt"
+          tar -C "$ROOT" -I 'zstd -19 -T0' -cf RC18_KICAD_10_0_6_LIB_SUBSET.tar.zst .
+          sha256sum RC18_KICAD_10_0_6_LIB_SUBSET.tar.zst > RC18_KICAD_10_0_6_LIB_SUBSET_SHA256.txt
+          ls -lh RC18_KICAD_10_0_6_LIB_SUBSET.tar.zst
+
+      - name: Upload subset
+        uses: actions/upload-artifact@v4
+        with:
+          name: rc18-kicad-10.0.6-lib-subset
+          path: |
+            RC18_KICAD_10_0_6_LIB_SUBSET.tar.zst
+            RC18_KICAD_10_0_6_LIB_SUBSET_SHA256.txt
+          compression-level: 0
+          if-no-files-found: error
