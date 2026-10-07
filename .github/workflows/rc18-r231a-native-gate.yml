@@ -1,0 +1,96 @@
+name: RC18 R2.3.1A Native KiCad Fix Gate
+
+on:
+  push:
+    branches:
+      - rc18-r231a-native-gate-20261008
+    paths:
+      - 'r231a.patch.gz.b64'
+      - 'run_r231a_native_gate.py'
+      - '.github/workflows/rc18-r231a-native-gate.yml'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  native-gate:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout R2.3.1A gate branch
+        uses: actions/checkout@v4
+
+      - name: Install exact KiCad 10.0.6
+        run: |
+          set -euxo pipefail
+          sudo apt-get update
+          sudo apt-get install -y software-properties-common gh
+          sudo add-apt-repository -y ppa:kicad/kicad-10.0-releases
+          sudo apt-get update
+          sudo apt-get install -y kicad
+          test "$(kicad-cli --version | awk '{print $1}')" = "10.0.6"
+          kicad-cli --version | tee KICAD_NATIVE_VERSION.txt
+
+      - name: Recover exact R1.2 Manufacturing MASTER
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euxo pipefail
+          RUN_ID="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow rc18-r12-native-gate.yml --branch rc18-r12-native-gate-20261007 --status success --limit 1 --json databaseId --jq '.[0].databaseId')"
+          test -n "$RUN_ID"
+          echo "$RUN_ID" | tee R1_2_SOURCE_RUN_ID.txt
+          mkdir prior
+          gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --name rc18-r12-native-gate-evidence --dir prior
+          test -f prior/RC18_P21_MANUFACTURING_MASTER_R1_2.zip
+          sha256sum prior/RC18_P21_MANUFACTURING_MASTER_R1_2.zip | tee R1_2_SOURCE_MASTER_SHA256.txt
+          grep -q '^c675bd443d6fa852dfa72c96ca9fb4488181913c9f2fc60e008870a9d65e6f69 ' R1_2_SOURCE_MASTER_SHA256.txt
+          mkdir source
+          unzip -q prior/RC18_P21_MANUFACTURING_MASTER_R1_2.zip -d source
+          test -d source/RC18_P21_MANUFACTURING_MASTER_R1_2
+
+      - name: Apply exact R2.3.1A six-issue patch
+        run: |
+          set -euxo pipefail
+          base64 -d r231a.patch.gz.b64 | gunzip > r231a.patch
+          sha256sum r231a.patch | tee R2_3_1A_PATCH_SHA256.txt
+          mkdir -p work
+          cp -a source/RC18_P21_MANUFACTURING_MASTER_R1_2 work/RC18_R2_3_1A_CANDIDATE
+          patch --batch --fuzz=0 -p1 -d work/RC18_R2_3_1A_CANDIDATE < r231a.patch
+          cp run_r231a_native_gate.py work/RC18_R2_3_1A_CANDIDATE/
+          test "$(grep -c '(footprint ' work/RC18_R2_3_1A_CANDIDATE/RC18_RevB_SI.kicad_pcb)" -ge 133
+          grep -q 'RC18_Custom:C_Rect_L7.2mm_W5.0mm_P5.00mm_R82' work/RC18_R2_3_1A_CANDIDATE/RC18_RevB_SI.kicad_pcb
+          grep -q 'VLINE_WIDE_ADC' work/RC18_R2_3_1A_CANDIDATE/03_MCU_DIGITAL.kicad_sch
+
+      - name: Run exact KiCad 10.0.6 native gate
+        run: |
+          set -euxo pipefail
+          cd work/RC18_R2_3_1A_CANDIDATE
+          python3 run_r231a_native_gate.py
+
+      - name: Collect R2.3.1A evidence
+        if: always()
+        run: |
+          set -euxo pipefail
+          mkdir -p collected/candidate-core
+          cp -f KICAD_NATIVE_VERSION.txt collected/ 2>/dev/null || true
+          cp -f R1_2_SOURCE_RUN_ID.txt collected/ 2>/dev/null || true
+          cp -f R1_2_SOURCE_MASTER_SHA256.txt collected/ 2>/dev/null || true
+          cp -f R2_3_1A_PATCH_SHA256.txt collected/ 2>/dev/null || true
+          cp -rf work/RC18_R2_3_1A_CANDIDATE/R2_3_1A_NATIVE_RESULTS collected/ 2>/dev/null || true
+          cp -f work/RC18_R2_3_1A_CANDIDATE/RC18_RevB_SI.kicad_pcb collected/candidate-core/ 2>/dev/null || true
+          cp -f work/RC18_R2_3_1A_CANDIDATE/RC18_RevB_SI.kicad_sch collected/candidate-core/ 2>/dev/null || true
+          cp -f work/RC18_R2_3_1A_CANDIDATE/03_MCU_DIGITAL.kicad_sch collected/candidate-core/ 2>/dev/null || true
+          cp -f work/RC18_R2_3_1A_CANDIDATE/01_POWER_INPUT.kicad_sch collected/candidate-core/ 2>/dev/null || true
+          cp -f work/RC18_R2_3_1A_CANDIDATE/06_SI_HALFBRIDGE.kicad_sch collected/candidate-core/ 2>/dev/null || true
+          cp -f work/RC18_R2_3_1A_CANDIDATE/08_INJECTION_DISCONNECT.kicad_sch collected/candidate-core/ 2>/dev/null || true
+          cp -f work/RC18_R2_3_1A_NATIVE_PASS_MASTER.zip collected/ 2>/dev/null || true
+          cp -f work/RC18_R2_3_1A_NATIVE_PASS_MASTER_SHA256.txt collected/ 2>/dev/null || true
+          find collected -maxdepth 3 -type f -print
+
+      - name: Upload R2.3.1A native evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rc18-r231a-native-gate-evidence
+          path: collected/
+          if-no-files-found: error
