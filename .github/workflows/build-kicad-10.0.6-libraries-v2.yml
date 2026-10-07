@@ -1,0 +1,49 @@
+name: Build KiCad 10.0.6 Standard Libraries V2
+
+on:
+  push:
+    branches:
+      - rc18-r12-native-gate-20261007
+    paths:
+      - '.github/workflows/build-kicad-10.0.6-libraries-v2.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Install exact KiCad 10.0.6 standard libraries
+        run: |
+          set -euxo pipefail
+          sudo apt-get update
+          sudo apt-get install -y software-properties-common
+          sudo add-apt-repository -y ppa:kicad/kicad-10.0-releases
+          sudo apt-get update
+          sudo apt-get install -y kicad kicad-symbols kicad-footprints kicad-templates
+          kicad-cli --version | tee kicad-version.txt
+          test "$(kicad-cli --version | awk '{print $1}')" = "10.0.6"
+          test -f /usr/share/kicad/symbols/power.kicad_sym
+          test -d /usr/share/kicad/footprints/Resistor_SMD.pretty
+          find /usr/share/kicad/symbols -maxdepth 1 -type f | sed -n '1,10p'
+          find /usr/share/kicad/footprints -maxdepth 1 -type d | sed -n '1,10p'
+
+      - name: Package standard libraries
+        run: |
+          set -euxo pipefail
+          mkdir -p bundle/usr/share/kicad
+          cp -a /usr/share/kicad/symbols bundle/usr/share/kicad/
+          cp -a /usr/share/kicad/footprints bundle/usr/share/kicad/
+          cp -a /usr/share/kicad/template bundle/usr/share/kicad/
+          tar -C bundle -caf KICAD_10_0_6_STANDARD_LIBS.tar.zst .
+          sha256sum KICAD_10_0_6_STANDARD_LIBS.tar.zst > KICAD_10_0_6_STANDARD_LIBS_SHA256.txt
+          ls -lh KICAD_10_0_6_STANDARD_LIBS.tar.zst
+
+      - name: Upload standard libraries artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kicad-10.0.6-standard-libraries-v2
+          path: |
+            KICAD_10_0_6_STANDARD_LIBS.tar.zst
+            KICAD_10_0_6_STANDARD_LIBS_SHA256.txt
+            kicad-version.txt
+          compression-level: 0
+          if-no-files-found: error
