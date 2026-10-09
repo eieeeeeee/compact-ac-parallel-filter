@@ -40,15 +40,27 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          docker run --platform linux/amd64 --rm             -v "$PWD/work:/project" -w /project             kicad/kicad:10.0.6             kicad-cli sch erc --format json --severity-all             -o /project/ERC_NATIVE_10_0_6.json RC18_RevB_SI.kicad_sch
-          cp work/ERC_NATIVE_10_0_6.json native-gate-output/
+          cid=$(docker create --platform linux/amd64 -v "$PWD/work:/project" -w /project kicad/kicad:10.0.6 kicad-cli sch erc --format json --severity-all -o /tmp/ERC_NATIVE_10_0_6.json RC18_RevB_SI.kicad_sch)
+          set +e
+          docker start -a "$cid"
+          rc=$?
+          set -e
+          docker cp "$cid:/tmp/ERC_NATIVE_10_0_6.json" native-gate-output/ERC_NATIVE_10_0_6.json
+          docker rm "$cid"
+          test "$rc" -eq 0
 
       - name: Native DRC + Unconnected + Schematic parity JSON
         shell: bash
         run: |
           set -euo pipefail
-          docker run --platform linux/amd64 --rm             -v "$PWD/work:/project" -w /project             kicad/kicad:10.0.6             kicad-cli pcb drc --format json --severity-all             --schematic-parity --refill-zones             -o /project/DRC_NATIVE_10_0_6.json RC18_RevB_SI.kicad_pcb
-          cp work/DRC_NATIVE_10_0_6.json native-gate-output/
+          cid=$(docker create --platform linux/amd64 -v "$PWD/work:/project" -w /project kicad/kicad:10.0.6 kicad-cli pcb drc --format json --severity-all --schematic-parity --refill-zones -o /tmp/DRC_NATIVE_10_0_6.json RC18_RevB_SI.kicad_pcb)
+          set +e
+          docker start -a "$cid"
+          rc=$?
+          set -e
+          docker cp "$cid:/tmp/DRC_NATIVE_10_0_6.json" native-gate-output/DRC_NATIVE_10_0_6.json
+          docker rm "$cid"
+          test "$rc" -eq 0
 
       - name: Enforce ERC 0 DRC 0 Unconnected 0 Parity 0
         shell: bash
