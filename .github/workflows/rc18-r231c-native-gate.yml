@@ -1,0 +1,142 @@
+name: RC18 R2.3.1C Native KiCad 10.0.6 Gate
+
+on:
+  push:
+    branches:
+      - rc18-r2-3-1c-native-gate
+    paths:
+      - '.github/workflows/rc18-r231c-native-gate.yml'
+  workflow_dispatch:
+
+jobs:
+  native-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout validation branch
+        uses: actions/checkout@v4
+
+      - name: Reconstruct exact candidate ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat native-gate-input/rc18_candidate_b64_*.txt > candidate.b64
+          base64 -d candidate.b64 > RC18_R2_3_1C_NATIVE_INPUT_MINIMAL.zip
+          echo "5c66c86bd7aa9131f76ca7f8dbe66c2f0edc4b6e00f670aff15864167bc0f1c7  RC18_R2_3_1C_NATIVE_INPUT_MINIMAL.zip" | sha256sum -c -
+          mkdir -p work native-gate-output
+          unzip -q RC18_R2_3_1C_NATIVE_INPUT_MINIMAL.zip -d work
+
+      - name: Pull exact official KiCad 10.0.6 image
+        run: docker pull kicad/kicad:10.0.6
+
+      - name: Verify exact KiCad version
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm kicad/kicad:10.0.6 kicad-cli --version | tee native-gate-output/KICAD_VERSION.txt
+          grep -Eq '(^|[^0-9])10\.0\.6([^0-9]|$)' native-gate-output/KICAD_VERSION.txt
+
+      - name: Native ERC JSON
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --platform linux/amd64 --rm             -v "$PWD/work:/project" -w /project             kicad/kicad:10.0.6             kicad-cli sch erc --format json --severity-all             -o ERC_NATIVE_10_0_6.json RC18_RevB_SI.kicad_sch
+          cp work/ERC_NATIVE_10_0_6.json native-gate-output/
+
+      - name: Native DRC + Unconnected + Schematic parity JSON
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --platform linux/amd64 --rm             -v "$PWD/work:/project" -w /project             kicad/kicad:10.0.6             kicad-cli pcb drc --format json --severity-all             --schematic-parity --refill-zones             -o DRC_NATIVE_10_0_6.json RC18_RevB_SI.kicad_pcb
+          cp work/DRC_NATIVE_10_0_6.json native-gate-output/
+
+      - name: Enforce ERC 0 DRC 0 Unconnected 0 Parity 0
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, pathlib, sys, hashlib, datetime
+
+          out = pathlib.Path("native-gate-output")
+          erc = json.loads((out/"ERC_NATIVE_10_0_6.json").read_text())
+          drc = json.loads((out/"DRC_NATIVE_10_0_6.json").read_text())
+
+          def active(items):
+              return [x for x in items or [] if not x.get("excluded", False)]
+
+          erc_v = active(erc.get("violations", []))
+          drc_v = active(drc.get("violations", []))
+          unc   = active(drc.get("unconnected_items", []))
+          par   = active(drc.get("schematic_parity", []))
+
+          counts = {
+              "ERC": len(erc_v),
+              "DRC": len(drc_v),
+              "Unconnected": len(unc),
+              "Parity": len(par),
+          }
+
+          pcb = pathlib.Path("work/RC18_RevB_SI.kicad_pcb")
+          sch = pathlib.Path("work/RC18_RevB_SI.kicad_sch")
+          report = [
+              "# RC18 Rev.B-SI — R2.3.1C Native Gate",
+              "",
+              "- KiCad: **10.0.6 official Docker image**",
+              f"- ERC: **{counts['ERC']}**",
+              f"- DRC: **{counts['DRC']}**",
+              f"- Unconnected: **{counts['Unconnected']}**",
+              f"- Schematic parity: **{counts['Parity']}**",
+              "",
+              f"- PCB SHA256: `{hashlib.sha256(pcb.read_bytes()).hexdigest()}`",
+              f"- Root SCH SHA256: `{hashlib.sha256(sch.read_bytes()).hexdigest()}`",
+              "",
+              "Verdict: **" + ("PASS" if all(v == 0 for v in counts.values()) else "FAIL") + "**",
+              "",
+          ]
+          (out/"R2_3_1C_NATIVE_GATE_REPORT.md").write_text("\n".join(report), encoding="utf-8")
+          (out/"R2_3_1C_COUNTS.json").write_text(json.dumps(counts, indent=2)+"\n", encoding="utf-8")
+
+          print(counts)
+          if any(counts.values()):
+              print("NATIVE_GATE_FAIL")
+              sys.exit(1)
+          print("NATIVE_GATE_PASS")
+          PY
+
+      - name: Build re-FREEZE package
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p freeze
+          cp -a work/*.kicad_pro work/*.kicad_sch work/*.kicad_pcb freeze/
+          cp -a work/RC18_Custom.kicad_sym work/RC18_Custom.pretty work/fp-lib-table work/sym-lib-table freeze/
+          cp native-gate-output/KICAD_VERSION.txt freeze/
+          cp native-gate-output/ERC_NATIVE_10_0_6.json freeze/
+          cp native-gate-output/DRC_NATIVE_10_0_6.json freeze/
+          cp native-gate-output/R2_3_1C_NATIVE_GATE_REPORT.md freeze/
+          cp native-gate-output/R2_3_1C_COUNTS.json freeze/
+          (
+            cd freeze
+            sha256sum               RC18_RevB_SI.kicad_pcb               RC18_RevB_SI.kicad_sch               RC18_RevB_SI.kicad_pro               > SHA256SUMS_R2_3_1C.txt
+            zip -qr ../RC18_R2_3_1C_NATIVE_PASS_REFREEZE.zip .
+          )
+          sha256sum RC18_R2_3_1C_NATIVE_PASS_REFREEZE.zip | tee native-gate-output/REFREEZE_ZIP_SHA256.txt
+
+      - name: Upload native reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rc18-r2-3-1c-native-reports
+          path: native-gate-output/
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload re-FREEZE candidate
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RC18_R2_3_1C_NATIVE_PASS_REFREEZE
+          path: RC18_R2_3_1C_NATIVE_PASS_REFREEZE.zip
+          if-no-files-found: error
+          retention-days: 7
