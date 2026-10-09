@@ -61,6 +61,7 @@ jobs:
           docker cp "$cid:/tmp/DRC_REFILL_SAVE_NATIVE_10_0_6.json" native-gate-output/DRC_REFILL_SAVE_NATIVE_10_0_6.json
           docker rm "$cid"
           test "$rc" -eq 0
+          cp work/RC18_RevB_SI.kicad_pcb native-gate-output/RC18_RevB_SI_REFILLED.kicad_pcb
 
       - name: Native final DRC + Unconnected + Schematic parity JSON
         shell: bash
