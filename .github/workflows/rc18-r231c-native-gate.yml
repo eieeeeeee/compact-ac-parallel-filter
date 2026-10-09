@@ -22,7 +22,7 @@ jobs:
           set -euo pipefail
           cat native-gate-input/rc18_candidate_b64_*.txt > candidate.b64
           base64 -d candidate.b64 > RC18_R2_3_1C_NATIVE_INPUT_MINIMAL.zip
-          echo "ab412d47bb0deb292974af05282737d12568c527290d812532958e19f7565c6e  RC18_R2_3_1C_NATIVE_INPUT_MINIMAL.zip" | sha256sum -c -
+          echo "df8c5d7cac7fd86848e76d3ebdc51e3b36cd111ab671e1920b1c0b237f1ce005  RC18_R2_3_1C_NATIVE_INPUT_MINIMAL.zip" | sha256sum -c -
           mkdir -p work native-gate-output
           unzip -q RC18_R2_3_1C_NATIVE_INPUT_MINIMAL.zip -d work
 
