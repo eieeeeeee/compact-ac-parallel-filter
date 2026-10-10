@@ -1,0 +1,43 @@
+name: RC18 vendor CSD transient
+on:
+  push:
+    branches:
+      - rc18-spice-validation-20261010
+    paths:
+      - '.github/workflows/rc18-csd-vendor.yml'
+jobs:
+  csd:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install ngspice and fetch official TI model
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ngspice
+          curl -fL --retry 4 -o /tmp/CSD17381F4.zip https://www.ti.com/lit/zip/SLPM073
+          unzip -q /tmp/CSD17381F4.zip -d /tmp/csd
+          cp /tmp/csd/CSD17381F4.lib validation/CSD17381F4.lib
+          ngspice --version | tee validation/CSD_NGSPICE_VERSION.txt
+      - name: Run 2/5/10nH commutation loop sweeps
+        run: |
+          set -euxo pipefail
+          : > validation/CSD_MEASURES.txt
+          for pair in "2n 0.5n" "5n 1.25n" "10n 2.5n"; do
+            set -- $pair
+            total=$1
+            seg=$2
+            sed "s/LPSEG_VALUE/$seg/" validation/rc18_csd_vendor_template.cir > validation/csd_$total.cir
+            (cd validation && ngspice -b -D ngbehavior=ps -o csd_$total.log csd_$total.cir)
+            echo "=== loop $total ===" | tee -a validation/CSD_MEASURES.txt
+            grep -Ei '(il1_|sw_|vdsh_|vdsl_|error|failed)' validation/csd_$total.log | tee -a validation/CSD_MEASURES.txt || true
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rc18-csd-vendor-transient
+          path: |
+            validation/csd_*.log
+            validation/CSD_MEASURES.txt
+            validation/CSD_NGSPICE_VERSION.txt
+          retention-days: 7
