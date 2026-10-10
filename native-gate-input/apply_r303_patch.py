@@ -55,7 +55,7 @@ NEW=[
 	)'''
 ]
 GND_VIA='''(via
-		(at 42.655 12.58)
+		(at 43.29 11.46)
 		(size 0.45)
 		(drill 0.2)
 		(layers "F.Cu" "B.Cu")
