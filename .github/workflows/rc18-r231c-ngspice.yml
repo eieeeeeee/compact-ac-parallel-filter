@@ -1,0 +1,41 @@
+name: RC18 R2.3.1C Ngspice Validation
+on:
+  push:
+    branches:
+      - rc18-r2-3-1c-native-gate
+    paths:
+      - '.github/workflows/rc18-r231c-ngspice.yml'
+  workflow_dispatch:
+jobs:
+  ngspice:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install ngspice
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ngspice
+          ngspice --version | tee simulations/rc18-r231c/NGSPICE_VERSION.txt
+      - name: Run branch-close transient
+        run: ngspice -b -o simulations/rc18-r231c/branch_step.log simulations/rc18-r231c/branch_step.cir
+      - name: Run 35us soft-start
+        run: ngspice -b -o simulations/rc18-r231c/branch_ramp35.log simulations/rc18-r231c/branch_ramp35.cir
+      - name: Run PWM high-harmonic transient
+        run: ngspice -b -o simulations/rc18-r231c/pwm_nominal.log simulations/rc18-r231c/pwm_nominal.cir
+      - name: Summarize
+        run: |
+          {
+            echo "===== VERSION ====="
+            cat simulations/rc18-r231c/NGSPICE_VERSION.txt
+            echo "===== BRANCH STEP ====="
+            grep -i -E 'ipeak|itrip|v3min|v3max' simulations/rc18-r231c/branch_step.log || true
+            echo "===== RAMP35 ====="
+            grep -i -E 'ipeak' simulations/rc18-r231c/branch_ramp35.log || true
+            echo "===== PWM ====="
+            grep -i -E 'il1rms|ic1rms|il2rms|ic2rms|il3rms|ic3rms|iinjrms|vlinerms' simulations/rc18-r231c/pwm_nominal.log || true
+          } | tee simulations/rc18-r231c/RESULTS_SUMMARY.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rc18-r231c-ngspice-results
+          path: simulations/rc18-r231c/
+          retention-days: 7
