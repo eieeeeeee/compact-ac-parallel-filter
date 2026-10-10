@@ -1,0 +1,26 @@
+* RC18 R2.3.1C branch-close transient v2
+VSW sw 0 DC 6
+L1 sw l1a 0.82u IC=0
+RL1 l1a n1 0.040
+C1 n1 0 150n IC=6
+L2 n1 l2a 0.47u IC=0
+RL2 l2a n2 0.027
+C2 n2 0 100n IC=6
+L3 n2 l3a 0.68u IC=0
+RL3 l3a n3 0.037
+C3 n3 0 82n IC=6
+C301 n3 ci 1u IC=0
+R301 ci rsh 4.7
+VSENSE rsh rsh2 0
+R302 rsh2 swn 0.33
+SBR swn line ctrl 0 SWMOD
+RLINE line 0 5
+VCTRL ctrl 0 PULSE(0 5 1u 1n 1n 100u 200u)
+.model SWMOD SW(Ron=0.1 Roff=1e9 Vt=2 Vh=0.1)
+.ic V(n1)=6 V(n2)=6 V(n3)=6 V(ci)=6 V(rsh)=6 V(rsh2)=6 V(swn)=6 V(line)=0
+.tran 0.5n 60u 0 0.5n uic
+.meas tran IPEAK MAX I(VSENSE) FROM=1u TO=60u
+.meas tran ITRIP_T WHEN I(VSENSE)=0.178 FALL=1
+.meas tran V3MIN MIN V(n3) FROM=1u TO=60u
+.meas tran V3MAX MAX V(n3) FROM=1u TO=60u
+.end
