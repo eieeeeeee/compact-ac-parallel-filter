@@ -54,6 +54,15 @@ NEW=[
 		(uuid "555ef8ee-954a-402f-a63f-3164e0ace785")
 	)'''
 ]
+GND_VIA='''(via
+		(at 42.655 12.58)
+		(size 0.45)
+		(drill 0.2)
+		(layers "F.Cu" "B.Cu")
+		(locked yes)
+		(net "GND")
+		(uuid "6e7a5b0d-4d48-4db2-ae3e-3061c21a8f95")
+	)'''
 
 def blocks(t):
     out=[]; dep=0; st=None
@@ -92,7 +101,7 @@ def main():
         t=t[:a]+t[b:]
     z=t.find("\n\t(zone")
     assert z>0
-    add="".join("\t"+x.replace("\n","\n\t")+"\n" for x in NEW)
+    add="".join("\t"+x.replace("\n","\n\t")+"\n" for x in NEW+[GND_VIA])
     t=t[:z+1]+add+t[z+1:]
     p.write_text(t)
     q=p.read_text()
@@ -100,9 +109,9 @@ def main():
     assert '(layer "F.Cu")' in r and '(at 45.5 12.25)' in r
     assert '(attr smd)' in r and 'exclude_from_pos_files' not in r
     for u in OLD: assert hit(q,u) is None
-    for x in NEW:
+    for x in NEW+[GND_VIA]:
         u=x.split('(uuid "',1)[1].split('"',1)[0]
         assert hit(q,u)
-    print("R303_PATCH_PASS")
+    print("R303_AND_GND_STITCH_PATCH_PASS")
 
 if __name__=="__main__": main()
