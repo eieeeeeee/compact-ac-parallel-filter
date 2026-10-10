@@ -1,4 +1,5 @@
 name: RC18 ngspice validation
+# rerun 2026-10-10 corrected current probes and late steady-state window
 on:
   push:
     branches:
