@@ -1,0 +1,55 @@
+* RC18 conservative MOSFET-equivalent VDS stress model
+* CSD17381F4 datasheet max Rds=117m @4.5V, Coss=57p, trr typ 5.6ns
+.param T=343.750001n LPSEG=LPSEG_VALUE
+VVBUS vbus 0 12
+
+* split parasitic loop inductance; total approximately 4*LPSEG
+LHD vbus dh {LPSEG}
+LHS sh sw {LPSEG}
+LLD sw dl {LPSEG}
+LLS sl 0 {LPSEG}
+
+* ideal voltage controlled channels with worst-case Ron
+S_H dh sh gh sh SWMOD
+S_L dl sl gl sl SWMOD
+.model SWMOD SW(Ron=0.117 Roff=100Meg Vt=2.5 Vh=0.1)
+
+* worst Coss on each FET
+CH dh sh 57p
+CL dl sl 57p
+
+* anti-parallel body diodes, recovery-time proxy
+DH sh dh DMOD
+DL sl dl DMOD
+.model DMOD D(Is=1n Rs=0.15 N=1.1 Tt=5.6n Cjo=10p)
+
+* complementary gate control, 15ns deadtime
+VGL gl sl PULSE(0 6.96 7.5n 2n 2n 156.875n {T})
+VGH gh sh PULSE(0 6.96 179.375n 2n 2n 156.875n {T})
+
+* stressed LC corner
+RL1 sw l1in 32m
+L1 l1in n1 0.656u
+C1 n1 0 127.5n
+RL2 n1 l2in 21.6m
+L2 l2in n2 0.376u
+C2 n2 0 85n
+RL3 n2 l3in 29.6m
+L3 l3in out 0.544u
+C3 out 0 69.7n
+C301 out cinj 1.05u
+R301 cinj rsh 4.7
+R302 rsh qin 0.33
+RQ qin line 0.096
+RLINE line 0 5
+CPAR sw line 7.5p
+
+.tran 0.1n 30u 20u 0.1n
+.meas tran IL1_RMS RMS I(L1) FROM=25u TO=30u
+.meas tran IL1_MAX MAX I(L1) FROM=25u TO=30u
+.meas tran IL1_MIN MIN I(L1) FROM=25u TO=30u
+.meas tran SW_MAX MAX V(sw) FROM=25u TO=30u
+.meas tran SW_MIN MIN V(sw) FROM=25u TO=30u
+.meas tran VDSH_MAX MAX V(dh,sh) FROM=25u TO=30u
+.meas tran VDSL_MAX MAX V(dl,sl) FROM=25u TO=30u
+.end
