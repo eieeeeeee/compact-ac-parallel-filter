@@ -1,0 +1,21 @@
+* RC18 Rev.B-SI — C301/branch startup transient check
+V5 a5 0 PWL(0 0 1u 0 1.001u 6)
+C5 a5 c5 1.05u
+R305 c5 s5 5.126
+RL5 s5 0 5
+V10 a10 0 PWL(0 0 1u 0 1.001u 6)
+C10 a10 c10 1.05u
+R3010 c10 s10 5.126
+RL10 s10 0 10
+V20 a20 0 PWL(0 0 1u 0 1.001u 6)
+C20 a20 c20 1.05u
+R3020 c20 s20 5.126
+RL20 s20 0 20
+.tran 20n 150u 0 20n
+.meas tran I5_MAX MAX I(C5)
+.meas tran I10_MAX MAX I(C10)
+.meas tran I20_MAX MAX I(C20)
+.meas tran I5_AT20U FIND I(C5) AT=20u
+.meas tran I10_AT20U FIND I(C10) AT=20u
+.meas tran I20_AT20U FIND I(C20) AT=20u
+.end
