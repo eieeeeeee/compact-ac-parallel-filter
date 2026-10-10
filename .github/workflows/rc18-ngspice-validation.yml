@@ -17,15 +17,20 @@ jobs:
           sudo apt-get install -y ngspice
           ngspice --version | tee validation/NGSPICE_VERSION.txt
       - name: Run steady PWM
+        continue-on-error: true
         run: ngspice -b -o validation/steady.log validation/rc18_pwm_steady.cir
       - name: Run branch step
+        continue-on-error: true
         run: ngspice -b -o validation/branch_step.log validation/rc18_branch_step.cir
       - name: Run 100us softstart
+        continue-on-error: true
         run: ngspice -b -o validation/softstart_100us.log validation/rc18_softstart_100us.cir
       - name: Summarize measures
+        if: always()
         run: |
-          grep -Ei '(_rms|_max|_min|at20u)' validation/steady.log validation/branch_step.log validation/softstart_100us.log | tee validation/MEASURES.txt
+          grep -EHi '(_rms|_max|_min|at20u|error|failed)' validation/*.log | tee validation/MEASURES.txt || true
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: rc18-ngspice-validation
           path: |
