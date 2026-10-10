@@ -103,6 +103,29 @@ def main():
     assert z>0
     add="".join("\t"+x.replace("\n","\n\t")+"\n" for x in NEW+[GND_VIA])
     t=t[:z+1]+add+t[z+1:]
+
+    # C301: B.Fab/B.CrtYd carry the verified 7.2 x 5.0 mm KEMET body.
+    # Remove the stale generic 7.0 x 2.5 mm STEP model so 3D view cannot
+    # contradict the release-authority fabrication geometry.
+    c301=next((x for x in blocks(t) if '(property "Reference" "C301"' in x[2]),None)
+    assert c301
+    ca,cb,cf=c301
+    mi=cf.find('(model ')
+    if mi>=0:
+        dep=0
+        for mj in range(mi,len(cf)):
+            if cf[mj]=="(": dep+=1
+            elif cf[mj]==")":
+                dep-=1
+                if dep==0: break
+        rs=mi
+        while rs>0 and cf[rs-1] in " \\t": rs-=1
+        if rs>0 and cf[rs-1]=="\\n": rs-=1
+        re_=mj+1
+        if re_<len(cf) and cf[re_]=="\\n": re_+=1
+        cf=cf[:rs]+cf[re_:]
+        t=t[:ca]+cf+t[cb:]
+
     p.write_text(t)
     q=p.read_text()
     r=hit(q,R303)[2]
@@ -112,6 +135,8 @@ def main():
     for x in NEW+[GND_VIA]:
         u=x.split('(uuid "',1)[1].split('"',1)[0]
         assert hit(q,u)
-    print("R303_AND_GND_STITCH_PATCH_PASS")
+    c301=next(x[2] for x in blocks(q) if '(property "Reference" "C301"' in x[2])
+    assert 'C_Rect_L7.0mm_W2.5mm_P5.00mm.step' not in c301
+    print("R303_GND_STITCH_C301_3D_CLEANUP_PASS")
 
 if __name__=="__main__": main()
