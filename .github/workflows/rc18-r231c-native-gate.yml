@@ -25,6 +25,7 @@ jobs:
           echo "5b98b68dec99513f583128d7eba9d286dd832646ba19ea8f928e24633425a611  RC18_R2_3_1C_NATIVE_INPUT_MINIMAL.zip" | sha256sum -c -
           mkdir -p work native-gate-output
           unzip -q RC18_R2_3_1C_NATIVE_INPUT_MINIMAL.zip -d work
+          python3 native-gate-input/apply_r303_patch.py work/RC18_RevB_SI.kicad_pcb
 
       - name: Pull exact official KiCad 10.0.6 image
         run: docker pull kicad/kicad:10.0.6
