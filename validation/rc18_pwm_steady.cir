@@ -4,29 +4,33 @@
 VSW sw 0 PULSE(0 12 0 {TR} {TF} {PW} {T})
 RL1 sw l1in 32m
 L1 l1in n1 0.656u
-C1 n1 0 127.5n
+C1 n1 c1ret 127.5n
+VC1S c1ret 0 0
 RL2 n1 l2in 21.6m
 L2 l2in n2 0.376u
-C2 n2 0 85n
+C2 n2 c2ret 85n
+VC2S c2ret 0 0
 RL3 n2 l3in 29.6m
 L3 l3in out 0.544u
-C3 out 0 69.7n
-C301 out cinj 1.05u
+C3 out c3ret 69.7n
+VC3S c3ret 0 0
+C301 out cinjx 1.05u
+VINJS cinjx cinj 0
 R301 cinj rsh 4.7
 R302 rsh qin 0.33
 RQPAIR qin line 0.096
 RLINE line 0 5
 CPAR sw line 7.5p
-.tran 2n 30u 10u 2n
-.meas tran IL1_RMS RMS I(L1) FROM=20u TO=30u
-.meas tran IC1_RMS RMS I(C1) FROM=20u TO=30u
-.meas tran IL2_RMS RMS I(L2) FROM=20u TO=30u
-.meas tran IC2_RMS RMS I(C2) FROM=20u TO=30u
-.meas tran IL3_RMS RMS I(L3) FROM=20u TO=30u
-.meas tran IC3_RMS RMS I(C3) FROM=20u TO=30u
-.meas tran IINJ_RMS RMS I(C301) FROM=20u TO=30u
-.meas tran VLINE_RMS RMS V(line) FROM=20u TO=30u
-.meas tran VOUT_RMS RMS V(out) FROM=20u TO=30u
-.meas tran IL1_MAX MAX I(L1) FROM=20u TO=30u
-.meas tran IL1_MIN MIN I(L1) FROM=20u TO=30u
+.tran 2n 150u 100u 2n
+.meas tran IL1_RMS RMS I(L1) FROM=130u TO=150u
+.meas tran IC1_RMS RMS I(VC1S) FROM=130u TO=150u
+.meas tran IL2_RMS RMS I(L2) FROM=130u TO=150u
+.meas tran IC2_RMS RMS I(VC2S) FROM=130u TO=150u
+.meas tran IL3_RMS RMS I(L3) FROM=130u TO=150u
+.meas tran IC3_RMS RMS I(VC3S) FROM=130u TO=150u
+.meas tran IINJ_RMS RMS I(VINJS) FROM=130u TO=150u
+.meas tran VLINE_RMS RMS V(line) FROM=130u TO=150u
+.meas tran VOUT_RMS RMS V(out) FROM=130u TO=150u
+.meas tran IL1_MAX MAX I(L1) FROM=130u TO=150u
+.meas tran IL1_MIN MIN I(L1) FROM=130u TO=150u
 .end
