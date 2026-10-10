@@ -167,3 +167,5 @@ jobs:
           path: RC18_R2_3_1C_NATIVE_PASS_REFREEZE.zip
           if-no-files-found: error
           retention-days: 7
+
+# R306 GND stitch revision 1
