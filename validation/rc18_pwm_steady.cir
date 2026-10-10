@@ -1,0 +1,32 @@
+* RC18 Rev.B-SI — independent ngspice steady-state PWM check
+* LOW-VOLTAGE FIRST PROTOTYPE ONLY
+.param T=343.750001n TR=10n TF=10n PW=161.875001n
+VSW sw 0 PULSE(0 12 0 {TR} {TF} {PW} {T})
+RL1 sw l1in 32m
+L1 l1in n1 0.656u
+C1 n1 0 127.5n
+RL2 n1 l2in 21.6m
+L2 l2in n2 0.376u
+C2 n2 0 85n
+RL3 n2 l3in 29.6m
+L3 l3in out 0.544u
+C3 out 0 69.7n
+C301 out cinj 1.05u
+R301 cinj rsh 4.7
+R302 rsh qin 0.33
+RQPAIR qin line 0.096
+RLINE line 0 5
+CPAR sw line 7.5p
+.tran 2n 30u 10u 2n
+.meas tran IL1_RMS RMS I(L1) FROM=20u TO=30u
+.meas tran IC1_RMS RMS I(C1) FROM=20u TO=30u
+.meas tran IL2_RMS RMS I(L2) FROM=20u TO=30u
+.meas tran IC2_RMS RMS I(C2) FROM=20u TO=30u
+.meas tran IL3_RMS RMS I(L3) FROM=20u TO=30u
+.meas tran IC3_RMS RMS I(C3) FROM=20u TO=30u
+.meas tran IINJ_RMS RMS I(C301) FROM=20u TO=30u
+.meas tran VLINE_RMS RMS V(line) FROM=20u TO=30u
+.meas tran VOUT_RMS RMS V(out) FROM=20u TO=30u
+.meas tran IL1_MAX MAX I(L1) FROM=20u TO=30u
+.meas tran IL1_MIN MIN I(L1) FROM=20u TO=30u
+.end
