@@ -1,0 +1,34 @@
+* RC18 R2.3.1C PWM steady-state high-harmonic transient v2
+.param T=343.750001n
+.param TR=10n
+.param PW=161.8750005n
+VSW sw 0 PULSE(0 12 0 {TR} {TR} {PW} {T})
+L1 sw l1a 0.82u IC=0
+RL1 l1a n1 0.040
+VC1 n1 c1t 0
+C1 c1t 0 150n IC=6
+L2 n1 l2a 0.47u IC=0
+RL2 l2a n2 0.027
+VC2 n2 c2t 0
+C2 c2t 0 100n IC=6
+L3 n2 l3a 0.68u IC=0
+RL3 l3a n3 0.037
+VC3 n3 c3t 0
+C3 c3t 0 82n IC=6
+C301 n3 ci 1u IC=6
+R301 ci rsh 4.7
+VSENSE rsh rsh2 0
+R302 rsh2 line 0.33
+RLINE line 0 5
+CPAR sw line 7.5p IC=0
+.tran 0.5n 100u 0 1n uic
+.meas tran IL1RMS RMS I(L1) FROM=80u TO=100u
+.meas tran IC1RMS RMS I(VC1) FROM=80u TO=100u
+.meas tran IL2RMS RMS I(L2) FROM=80u TO=100u
+.meas tran IC2RMS RMS I(VC2) FROM=80u TO=100u
+.meas tran IL3RMS RMS I(L3) FROM=80u TO=100u
+.meas tran IC3RMS RMS I(VC3) FROM=80u TO=100u
+.meas tran IINJRMS RMS I(VSENSE) FROM=80u TO=100u
+.meas tran VLINERMS RMS V(line) FROM=80u TO=100u
+.meas tran V3AVG AVG V(n3) FROM=80u TO=100u
+.end
