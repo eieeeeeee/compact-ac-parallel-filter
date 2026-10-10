@@ -1,0 +1,19 @@
+* RC18 R2.3.1C branch-on first, 35 us average-duty soft-start
+VSW sw 0 PWL(0 0 35u 6 100u 6)
+L1 sw l1a 0.82u IC=0
+RL1 l1a n1 0.040
+C1 n1 0 150n IC=0
+L2 n1 l2a 0.47u IC=0
+RL2 l2a n2 0.027
+C2 n2 0 100n IC=0
+L3 n2 l3a 0.68u IC=0
+RL3 l3a n3 0.037
+C3 n3 0 82n IC=0
+C301 n3 ci 1u IC=0
+R301 ci rsh 4.7
+R302 rsh swn 0.33
+RBR swn line 0.1
+RLINE line 0 5
+.tran 0.5n 100u 0 0.5n uic
+.meas tran IPEAK MAX I(R302) FROM=0 TO=100u
+.end
