@@ -16,16 +16,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ngspice
           ngspice --version | tee simulations/rc18-r231c/NGSPICE_VERSION.txt
-      - name: Run all cases and retain logs
+      - name: Run v2 cases and retain logs
         shell: bash
         run: |
           set +e
-          ngspice -b -o simulations/rc18-r231c/branch_step.log simulations/rc18-r231c/branch_step.cir
-          echo $? > simulations/rc18-r231c/branch_step.rc
-          ngspice -b -o simulations/rc18-r231c/branch_ramp35.log simulations/rc18-r231c/branch_ramp35.cir
-          echo $? > simulations/rc18-r231c/branch_ramp35.rc
-          ngspice -b -o simulations/rc18-r231c/pwm_nominal.log simulations/rc18-r231c/pwm_nominal.cir
-          echo $? > simulations/rc18-r231c/pwm_nominal.rc
+          for f in branch_step_v2 branch_ramp35_v2 branch_ramp50_v2 pwm_steady_v2; do
+            ngspice -b -o simulations/rc18-r231c/$f.log simulations/rc18-r231c/$f.cir
+            echo $? > simulations/rc18-r231c/$f.rc
+          done
           set -e
       - name: Summarize
         shell: bash
@@ -33,20 +31,16 @@ jobs:
           {
             echo "===== VERSION ====="
             cat simulations/rc18-r231c/NGSPICE_VERSION.txt
-            echo "===== RETURN CODES ====="
-            printf "branch_step="; cat simulations/rc18-r231c/branch_step.rc
-            printf "branch_ramp35="; cat simulations/rc18-r231c/branch_ramp35.rc
-            printf "pwm_nominal="; cat simulations/rc18-r231c/pwm_nominal.rc
-            echo "===== BRANCH STEP ====="
-            cat simulations/rc18-r231c/branch_step.log
-            echo "===== RAMP35 ====="
-            cat simulations/rc18-r231c/branch_ramp35.log
-            echo "===== PWM ====="
-            cat simulations/rc18-r231c/pwm_nominal.log
-          } | tee simulations/rc18-r231c/RESULTS_SUMMARY.txt
+            for f in branch_step_v2 branch_ramp35_v2 branch_ramp50_v2 pwm_steady_v2; do
+              echo "===== $f RC ====="
+              cat simulations/rc18-r231c/$f.rc
+              echo "===== $f LOG ====="
+              cat simulations/rc18-r231c/$f.log
+            done
+          } | tee simulations/rc18-r231c/RESULTS_SUMMARY_V2.txt
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: rc18-r231c-ngspice-results
+          name: rc18-r231c-ngspice-results-v2
           path: simulations/rc18-r231c/
           retention-days: 7
