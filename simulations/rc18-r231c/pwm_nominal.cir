@@ -1,0 +1,29 @@
+* RC18 R2.3.1C PWM high-harmonic transient, nominal 7.5 pF sign-off coupling
+.param T=343.750001n
+.param TR=10n
+.param PW=161.8750005n
+VSW sw 0 PULSE(0 12 0 {TR} {TR} {PW} {T})
+L1 sw l1a 0.82u
+RL1 l1a n1 0.040
+C1 n1 0 150n
+L2 n1 l2a 0.47u
+RL2 l2a n2 0.027
+C2 n2 0 100n
+L3 n2 l3a 0.68u
+RL3 l3a n3 0.037
+C3 n3 0 82n
+C301 n3 ci 1u
+R301 ci rsh 4.7
+R302 rsh line 0.33
+RLINE line 0 5
+CPAR sw line 7.5p
+.tran 1n 30u 0 1n
+.meas tran IL1RMS RMS I(L1) FROM=20u TO=30u
+.meas tran IC1RMS RMS I(C1) FROM=20u TO=30u
+.meas tran IL2RMS RMS I(L2) FROM=20u TO=30u
+.meas tran IC2RMS RMS I(C2) FROM=20u TO=30u
+.meas tran IL3RMS RMS I(L3) FROM=20u TO=30u
+.meas tran IC3RMS RMS I(C3) FROM=20u TO=30u
+.meas tran IINJRMS RMS I(R302) FROM=20u TO=30u
+.meas tran VLINERMS RMS V(line) FROM=20u TO=30u
+.end
