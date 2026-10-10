@@ -168,4 +168,4 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-# R306 GND stitch revision 1
+# R306 GND stitch revision 2
