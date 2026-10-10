@@ -1,0 +1,49 @@
+* RC18 Rev.B-SI vendor CSD17381F4 transient half-bridge check
+* Official TI CSD17381F4.lib is downloaded by workflow.
+.include CSD17381F4.lib
+.param T=343.750001n DT=15n LPSEG=LPSEG_VALUE
+VVBUS vbus 0 12
+
+* Four equal parasitic segments; total commutation-loop inductance ~= 4*LPSEG
+LHD vbus dh {LPSEG}
+LHS sh sw {LPSEG}
+LLD sw dl {LPSEG}
+LLS sl 0 {LPSEG}
+
+XQH dh gh sh csd17381f4
+XQL dl gl sl csd17381f4
+
+* 50% complementary drive with 15 ns dead-time
+VGL gl sl PULSE(0 6.96 7.5n 2n 2n 156.875n {T})
+VGH gh sh PULSE(0 6.96 179.375n 2n 2n 156.875n {T})
+
+* Reconstruction network, stressed low-L / low-C corner
+RL1 sw l1in 32m
+L1 l1in n1 0.656u
+C1 n1 0 127.5n IC=6
+RL2 n1 l2in 21.6m
+L2 l2in n2 0.376u
+C2 n2 0 85n IC=6
+RL3 n2 l3in 29.6m
+L3 l3in out 0.544u
+C3 out 0 69.7n IC=6
+
+* Injection branch precharged to avoid startup artifact
+C301 out cinj 1.05u IC=6
+R301 cinj rsh 4.7
+R302 rsh qin 0.33
+RQPAIR qin line 0.096
+RLINE line 0 5
+CPAR sw line 7.5p
+
+.tran 0.2n 8u 3u 0.2n UIC
+.meas tran IL1_RMS RMS I(L1) FROM=5u TO=8u
+.meas tran IL1_MAX MAX I(L1) FROM=5u TO=8u
+.meas tran IL1_MIN MIN I(L1) FROM=5u TO=8u
+.meas tran SW_MAX MAX V(sw) FROM=5u TO=8u
+.meas tran SW_MIN MIN V(sw) FROM=5u TO=8u
+.meas tran VDSH_MAX MAX V(dh,sh) FROM=5u TO=8u
+.meas tran VDSL_MAX MAX V(dl,sl) FROM=5u TO=8u
+.meas tran VDSH_MIN MIN V(dh,sh) FROM=5u TO=8u
+.meas tran VDSL_MIN MIN V(dl,sl) FROM=5u TO=8u
+.end
