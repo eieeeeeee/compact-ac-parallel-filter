@@ -1,0 +1,60 @@
+name: RC18 smooth VDS sweep
+on:
+  push:
+    branches: [rc18-r2-3-1c-native-gate]
+    paths: ['.github/workflows/rc18-smooth-vds.yml']
+jobs:
+  sim:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install ngspice
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ngspice
+      - name: Smooth transition sweep
+        shell: bash
+        run: |
+          set -u
+          for ILOAD in 0.807 1.238; do
+            for RON in 0.06 0.117; do
+              for LTOT in 2 5 10 15; do
+                LLEG=$(python3 -c "print(float('${LTOT}')/2)")
+                cat > smooth.cir <<EOF
+          * RC18 smooth-conductance commutation model using CSD17381F4 datasheet switching times
+          .param RON=${RON}
+          VBUS pbus 0 13.2
+          LP pbus dh ${LLEG}n
+          LN gsl 0 ${LLEG}n
+          * tr ~1.4ns, tf ~3.6ns; 15ns nominal deadtime retained
+          VGL gl 0 PWL(0 6.96 40n 6.96 43.6n 0 130n 0 131.4n 6.96 180n 6.96)
+          VGH gh 0 PWL(0 0 55n 0 56.4n 6.96 114n 6.96 117.6n 0 180n 0)
+          BHS dh sw I=V(dh,sw)*(1e-9+(1/RON-1e-9)*min(max(V(gh)/6.96,0),1))
+          BLS sw gsl I=V(sw,gsl)*(1e-9+(1/RON-1e-9)*min(max(V(gl)/6.96,0),1))
+          CHS dh sw 44p
+          CLS sw gsl 44p
+          DHS sw dh DMOD
+          DLS gsl sw DMOD
+          .model DMOD D(Is=4.6e-10 N=1.125 Rs=6.44m Tt=1n)
+          ILOAD sw 0 DC ${ILOAD}
+          ELS vdls 0 sw gsl 1
+          EHS vdhs 0 dh sw 1
+          C605 pbus 0 100n
+          C606 pbus 0 1u
+          C607 pbus 0 10u
+          .options reltol=2e-5 abstol=1e-10 vntol=1e-7 method=gear
+          .tran 0.02n 175n 0 0.02n
+          .meas tran VDSLSMAX MAX V(vdls) FROM=35n TO=170n
+          .meas tran VDSLSMIN MIN V(vdls) FROM=35n TO=170n
+          .meas tran VDSHSMAX MAX V(vdhs) FROM=35n TO=170n
+          .meas tran VDSHSMIN MIN V(vdhs) FROM=35n TO=170n
+          .end
+          EOF
+                set +e
+                ngspice -b -o smooth.log smooth.cir
+                rc=$?
+                set -e
+                echo "CASE I=${ILOAD}A RON=${RON} LTOTAL=${LTOT}nH rc=$rc"
+                grep -E 'vdslsmax|vdslsmin|vdshsmax|vdshsmin|timestep too small|singular' smooth.log || true
+              done
+            done
+          done
