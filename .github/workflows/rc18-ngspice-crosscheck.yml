@@ -30,10 +30,12 @@ jobs:
           L3 c n3 0.68u
           C3 n3 0 82n ic=6
           Cinj n3 nx 1u ic=0
-          Rinj nx line 5.126
+          R301 nx r1 4.7
+          VSENSE r1 r2 0
+          R302 r2 line 0.426
           Rline line 0 5
-          .tran 2n 60u uic
-          .meas tran IBRMAX MAX I(Rinj)
+          .tran 0.5n 60u uic
+          .meas tran IBRMAX MAX I(VSENSE)
           .meas tran IL1MAX MAX I(L1)
           .meas tran IL2MAX MAX I(L2)
           .meas tran IL3MAX MAX I(L3)
@@ -43,33 +45,45 @@ jobs:
           EOF
           ngspice -b -o inrush.log inrush.cir
           cat inrush.log
-      - name: Run PWM switching SPICE
+      - name: Run clean PWM steady-state SPICE
         shell: bash
         run: |
           cat > pwm.cir <<'EOF'
-          * RC18 ideal halfbridge-source + exact 3-stage LC + injection branch
-          VPWM src 0 PULSE(0 12 0 2n 2n 169.875n 343.75n)
-          Rl1 src a 0.032
-          L1 a n1 0.656u
-          C1 n1 0 127.5n
-          Rl2 n1 b 0.0216
-          L2 b n2 0.376u
-          C2 n2 0 85n
-          Rl3 n2 c 0.0296
-          L3 c n3 0.544u
-          C3 n3 0 69.7n
-          Cinj n3 nx 1.05u
-          Rinj nx line 5.126
-          Rline line 0 5
-          .tran 0.2n 30u
-          .meas tran IL1RMS RMS I(L1) FROM=25u TO=30u
-          .meas tran IL2RMS RMS I(L2) FROM=25u TO=30u
-          .meas tran IL3RMS RMS I(L3) FROM=25u TO=30u
-          .meas tran IC1RMS RMS I(C1) FROM=25u TO=30u
-          .meas tran IC2RMS RMS I(C2) FROM=25u TO=30u
-          .meas tran IC3RMS RMS I(C3) FROM=25u TO=30u
-          .meas tran IL1MAX MAX I(L1) FROM=25u TO=30u
-          .meas tran IL1MIN MIN I(L1) FROM=25u TO=30u
+          * RC18 worst-LC carrier steady-state; C301 precharged to remove startup transient
+          .param T=343.75n
+          .param TR=2n
+          .param PW=169.875n
+          VPWM src 0 PULSE(0 12 0 {TR} {TR} {PW} {T})
+          L1 src l1a 0.656u IC=0
+          RL1 l1a n1 0.032
+          VC1 n1 c1t 0
+          C1 c1t 0 127.5n IC=6
+          L2 n1 l2a 0.376u IC=0
+          RL2 l2a n2 0.0216
+          VC2 n2 c2t 0
+          C2 c2t 0 85n IC=6
+          L3 n2 l3a 0.544u IC=0
+          RL3 l3a n3 0.0296
+          VC3 n3 c3t 0
+          C3 c3t 0 69.7n IC=6
+          C301 n3 ci 1.05u IC=6
+          R301 ci rsh 4.7
+          VSENSE rsh rsh2 0
+          R302 rsh2 line 0.426
+          RLINE line 0 5
+          CPAR src line 7.5p IC=0
+          .tran 0.2n 100u 0 0.5n uic
+          .meas tran IL1RMS RMS I(L1) FROM=80u TO=100u
+          .meas tran IC1RMS RMS I(VC1) FROM=80u TO=100u
+          .meas tran IL2RMS RMS I(L2) FROM=80u TO=100u
+          .meas tran IC2RMS RMS I(VC2) FROM=80u TO=100u
+          .meas tran IL3RMS RMS I(L3) FROM=80u TO=100u
+          .meas tran IC3RMS RMS I(VC3) FROM=80u TO=100u
+          .meas tran IINJRMS RMS I(VSENSE) FROM=80u TO=100u
+          .meas tran VLINERMS RMS V(line) FROM=80u TO=100u
+          .meas tran IL1MAX MAX I(L1) FROM=80u TO=100u
+          .meas tran IL1MIN MIN I(L1) FROM=80u TO=100u
+          .meas tran V3AVG AVG V(n3) FROM=80u TO=100u
           .end
           EOF
           ngspice -b -o pwm.log pwm.cir
