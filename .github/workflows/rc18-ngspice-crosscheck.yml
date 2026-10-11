@@ -1,0 +1,76 @@
+name: RC18 ngspice cross-check
+on:
+  push:
+    branches:
+      - rc18-r2-3-1c-native-gate
+    paths:
+      - '.github/workflows/rc18-ngspice-crosscheck.yml'
+jobs:
+  sim:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install ngspice
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ngspice
+          ngspice --version
+      - name: Run branch inrush SPICE
+        shell: bash
+        run: |
+          cat > inrush.cir <<'EOF'
+          * RC18 branch-inrush averaged power-stage cross-check
+          VAVG src 0 DC 6
+          Rl1 src a 0.04
+          L1 a n1 0.82u
+          C1 n1 0 150n ic=6
+          Rl2 n1 b 0.027
+          L2 b n2 0.47u
+          C2 n2 0 100n ic=6
+          Rl3 n2 c 0.037
+          L3 c n3 0.68u
+          C3 n3 0 82n ic=6
+          Cinj n3 nx 1u ic=0
+          Rinj nx line 5.126
+          Rline line 0 5
+          .tran 2n 60u uic
+          .meas tran IBRMAX MAX I(Rinj)
+          .meas tran IL1MAX MAX I(L1)
+          .meas tran IL2MAX MAX I(L2)
+          .meas tran IL3MAX MAX I(L3)
+          .meas tran V3MIN MIN V(n3)
+          .meas tran V3MAX MAX V(n3)
+          .end
+          EOF
+          ngspice -b -o inrush.log inrush.cir
+          cat inrush.log
+      - name: Run PWM switching SPICE
+        shell: bash
+        run: |
+          cat > pwm.cir <<'EOF'
+          * RC18 ideal halfbridge-source + exact 3-stage LC + injection branch
+          VPWM src 0 PULSE(0 12 0 2n 2n 169.875n 343.75n)
+          Rl1 src a 0.032
+          L1 a n1 0.656u
+          C1 n1 0 127.5n
+          Rl2 n1 b 0.0216
+          L2 b n2 0.376u
+          C2 n2 0 85n
+          Rl3 n2 c 0.0296
+          L3 c n3 0.544u
+          C3 n3 0 69.7n
+          Cinj n3 nx 1.05u
+          Rinj nx line 5.126
+          Rline line 0 5
+          .tran 0.2n 30u
+          .meas tran IL1RMS RMS I(L1) FROM=25u TO=30u
+          .meas tran IL2RMS RMS I(L2) FROM=25u TO=30u
+          .meas tran IL3RMS RMS I(L3) FROM=25u TO=30u
+          .meas tran IC1RMS RMS I(C1) FROM=25u TO=30u
+          .meas tran IC2RMS RMS I(C2) FROM=25u TO=30u
+          .meas tran IC3RMS RMS I(C3) FROM=25u TO=30u
+          .meas tran IL1MAX MAX I(L1) FROM=25u TO=30u
+          .meas tran IL1MIN MIN I(L1) FROM=25u TO=30u
+          .end
+          EOF
+          ngspice -b -o pwm.log pwm.cir
+          cat pwm.log
