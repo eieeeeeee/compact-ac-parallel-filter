@@ -1,0 +1,23 @@
+name: RC18 TI model inspect
+on:
+  push:
+    branches: [rc18-r2-3-1c-native-gate]
+    paths: ['.github/workflows/rc18-ti-model-inspect.yml']
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download TI unencrypted models
+        run: |
+          set -euxo pipefail
+          curl -fL --retry 4 -o csd.zip https://www.ti.com/lit/zip/SLPM073
+          curl -fL --retry 4 -o ucc.zip https://www.ti.com/lit/zip/SLUM720
+          mkdir csd ucc
+          unzip -q csd.zip -d csd
+          unzip -q ucc.zip -d ucc
+          echo "=== CSD files ==="
+          find csd -type f -maxdepth 4 -print
+          echo "=== UCC files ==="
+          find ucc -type f -maxdepth 4 -print
+          echo "=== subckts ==="
+          grep -RinE '^\.(subckt|model)|pspice|PARAMS' csd ucc | head -200 || true
