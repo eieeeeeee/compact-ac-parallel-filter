@@ -28,7 +28,26 @@ jobs:
             "TC2={ptrc2}":"TC2=1.40e-6",
           }
           for a,b in repl.items(): s=s.replace(a,b)
-          p.write_text(s, encoding="latin-1")
+          # ngspice does not reliably resolve PSpice-local .MODEL definitions.
+          # Move the unchanged model cards to global scope; physics/parameters are unchanged.
+          lines=s.splitlines()
+          sub_i=next(i for i,l in enumerate(lines) if l.strip().upper().startswith(".SUBCKT CSD17381F4"))
+          end_i=next(i for i,l in enumerate(lines) if l.strip().upper().startswith(".ENDS CSD17381F4"))
+          model_blocks=[]
+          remove=set()
+          i=sub_i+1
+          while i<end_i:
+              if lines[i].lstrip().upper().startswith(".MODEL "):
+                  blk=[lines[i]]; remove.add(i); i+=1
+                  while i<end_i and lines[i].lstrip().startswith("+"):
+                      blk.append(lines[i]); remove.add(i); i+=1
+                  model_blocks.extend(blk)
+              else:
+                  i+=1
+          body=[l for i,l in enumerate(lines) if i not in remove]
+          sub_i2=next(i for i,l in enumerate(body) if l.strip().upper().startswith(".SUBCKT CSD17381F4"))
+          body=body[:sub_i2]+model_blocks+body[sub_i2:]
+          p.write_text("\n".join(body)+"\n", encoding="latin-1")
           PY
       - name: Sweep power-loop inductance
         shell: bash
