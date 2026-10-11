@@ -1,0 +1,53 @@
+name: RC18 bounded ringing ngspice
+on:
+  push:
+    branches: [rc18-r2-3-1c-native-gate]
+    paths: ['.github/workflows/rc18-bounded-ring.yml']
+jobs:
+  ring:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install ngspice
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ngspice
+      - name: Sweep bounded switching model
+        shell: bash
+        run: |
+          set -euo pipefail
+          for ILOAD in 0.807 1.238; do
+            for COSS in 44 57; do
+              for LN in 2 5 10 15 20 30; do
+                cat > ring.cir <<EOF
+          * RC18 bounded commutation model: datasheet Coss + Rds + body diode
+          VBUS pbus 0 13.2
+          LP pbus dh ${LN}n
+          LN gsl 0 ${LN}n
+          SH dh sw gh 0 SWMOD
+          SL sw gsl gl 0 SWMOD
+          .model SWMOD SW(Ron=0.117 Roff=1e9 Vt=3.0 Vh=0.2)
+          CHS dh sw ${COSS}p
+          CLS sw gsl ${COSS}p
+          DHS sw dh DMOD
+          DLS gsl sw DMOD
+          .model DMOD D(Is=4.6e-10 N=1.125 Rs=6.44m Cjo=100p Vj=0.87 M=0.35 Tt=1n)
+          ILOAD sw 0 DC ${ILOAD}
+          VGL gl 0 PWL(0 6.96 50n 6.96 51n 0 164n 0 165n 6.96 250n 6.96)
+          VGH gh 0 PWL(0 0 65n 0 66n 6.96 149n 6.96 150n 0 250n 0)
+          C605 pbus 0 100n
+          C606 pbus 0 1u
+          C607 pbus 0 10u
+          .options reltol=1e-5 abstol=1e-11 vntol=1e-8 method=gear
+          .tran 0.01n 230n 0 0.02n
+          .meas tran VDSLSMAX MAX V(sw,gsl) FROM=45n TO=220n
+          .meas tran VDSHSMAX MAX V(dh,sw) FROM=45n TO=220n
+          .meas tran VSWMAX MAX V(sw) FROM=45n TO=220n
+          .meas tran VSWMIN MIN V(sw) FROM=45n TO=220n
+          .end
+          EOF
+                ngspice -b -o ring.log ring.cir
+                echo "CASE I=${ILOAD}A COSS=${COSS}pF LLEG=${LN}nH (total-loop~${LN}*2nH)"
+                grep -E 'vdslsmax|vdshsmax|vswmax|vswmin' ring.log || true
+              done
+            done
+          done
