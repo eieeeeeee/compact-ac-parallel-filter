@@ -17,7 +17,7 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           p=Path("CSD17381F4.lib")
-          s=p.read_text()
+          s=p.read_text(encoding="latin-1")
           repl={
             "{pWidth}":"0.1217604",
             "{pLen}":"0.5u",
@@ -28,7 +28,7 @@ jobs:
             "TC2={ptrc2}":"TC2=1.40e-6",
           }
           for a,b in repl.items(): s=s.replace(a,b)
-          p.write_text(s)
+          p.write_text(s, encoding="latin-1")
           PY
       - name: Sweep power-loop inductance
         shell: bash
