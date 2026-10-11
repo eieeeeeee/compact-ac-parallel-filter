@@ -14,20 +14,35 @@ jobs:
           echo 'set ngbehavior=ps' > ~/.spiceinit
           curl -fL --retry 4 -o csd.zip https://www.ti.com/lit/zip/SLPM073
           unzip -q csd.zip
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path("CSD17381F4.lib")
+          s=p.read_text()
+          repl={
+            "{pWidth}":"0.1217604",
+            "{pLen}":"0.5u",
+            "{perim}":"0.25569684",
+            "{abc /10}":"1.1e-12",
+            "{abc }":"1.1e-11",
+            "TC1={ptrc1}":"TC1=3.00e-3",
+            "TC2={ptrc2}":"TC2=1.40e-6",
+          }
+          for a,b in repl.items(): s=s.replace(a,b)
+          p.write_text(s)
+          PY
       - name: Sweep power-loop inductance
         shell: bash
         run: |
           set -euo pipefail
           for LN in 2 5 10 15 20; do
             cat > ring_${LN}n.cir <<EOF
-          * RC18 commutation ring - TI CSD17381F4 official unencrypted PSpice model
+          * RC18 commutation ring - TI CSD17381F4 official model, local PSpice params numerically expanded
           .include CSD17381F4.lib
           VBUS pcap 0 13.2
           C605 pcap 0 100n
           C606 pcap 0 1u
           C607 pcap 0 10u
           LPH pcap dh ${LN}n
-          * use one equivalent loop inductance in high-side path
           XHS dh gh sw csd17381f4
           XLS sw gl 0 csd17381f4
           ILOAD sw 0 DC 0.807
@@ -44,7 +59,6 @@ jobs:
           .meas tran VSWMIN MIN V(sw) FROM=45n TO=210n
           .meas tran VDSLSMAX MAX V(sw) FROM=45n TO=210n
           .meas tran VDSHSMAX MAX V(dh,sw) FROM=45n TO=210n
-          .meas tran IDHMAX MAX @m.xhs.m_nmos[id] FROM=45n TO=210n
           .end
           EOF
             set +e
