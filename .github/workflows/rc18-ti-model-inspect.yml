@@ -7,17 +7,11 @@ jobs:
   inspect:
     runs-on: ubuntu-latest
     steps:
-      - name: Download TI unencrypted models
+      - name: Download and inspect TI unencrypted model
         run: |
           set -euxo pipefail
           curl -fL --retry 4 -o csd.zip https://www.ti.com/lit/zip/SLPM073
-          curl -fL --retry 4 -o ucc.zip https://www.ti.com/lit/zip/SLUM720
-          mkdir csd ucc
+          mkdir csd
           unzip -q csd.zip -d csd
-          unzip -q ucc.zip -d ucc
-          echo "=== CSD files ==="
-          find csd -type f -maxdepth 4 -print
-          echo "=== UCC files ==="
-          find ucc -type f -maxdepth 4 -print
-          echo "=== subckts ==="
-          grep -RinE '^\.(subckt|model)|pspice|PARAMS' csd ucc | head -200 || true
+          echo "=== CSD17381F4 model header ==="
+          sed -n '1,120p' csd/CSD17381F4.lib
