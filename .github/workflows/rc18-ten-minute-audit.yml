@@ -1,5 +1,10 @@
 name: RC18 10-minute read-only audit
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'rc18_automation/**'
+      - '.github/workflows/rc18-ten-minute-audit.yml'
   schedule:
     - cron: '*/10 * * * *'
   workflow_dispatch:
