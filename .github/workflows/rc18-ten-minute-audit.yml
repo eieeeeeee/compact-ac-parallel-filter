@@ -1,0 +1,26 @@
+name: RC18 10-minute read-only audit
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: rc18-ten-minute-audit
+  cancel-in-progress: false
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python rc18_automation/audit.py
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rc18-audit-${{ github.run_id }}
+          path: rc18_automation/report.json
+          retention-days: 7
