@@ -1,0 +1,32 @@
+name: RC18 free 10-minute static audit
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: rc18-static-audit
+  cancel-in-progress: false
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check RC18 inputs without altering MASTER
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, pathlib, hashlib, datetime
+          root=pathlib.Path('rc18_automation/inputs')
+          files=sorted(p for p in root.rglob('*') if p.is_file()) if root.exists() else []
+          result={'utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'status':'HOLD_NO_RC18_INPUTS' if not files else 'INPUTS_PRESENT_STATIC_ONLY','file_count':len(files),'files':[{'path':str(p),'sha256':hashlib.sha256(p.read_bytes()).hexdigest()} for p in files],'manufacturing_release':False,'note':'No ChatGPT reasoning or native KiCad checks. Missing inputs or unverified safety evidence always HOLD.'}
+          pathlib.Path('rc18-audit.json').write_text(json.dumps(result,indent=2))
+          print(json.dumps(result,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rc18-audit-${{ github.run_id }}
+          path: rc18-audit.json
+          retention-days: 3
