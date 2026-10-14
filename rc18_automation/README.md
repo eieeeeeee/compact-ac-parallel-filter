@@ -1,0 +1,1 @@
+RC18 read-only 10-minute scheduled audit. No OpenAI API or paid services. No automatic design. Empty manifest intentionally fails closed until actual validated design files and SHA256 hashes are added. Manufacturing HOLD.
