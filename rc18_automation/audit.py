@@ -1,22 +1,36 @@
-import hashlib,json
+#!/usr/bin/env python3
+"""Fail-closed RC18 gate audit. Never claims electrical design validation."""
+import json, hashlib
 from pathlib import Path
-from datetime import datetime,timezone
+from datetime import datetime, timezone
 base=Path(__file__).resolve().parent
-manifest=base/"inputs/manifest.json"
-result={"utc":datetime.now(timezone.utc).isoformat(),"status":"ERROR_HOLD","manufacturing":"HOLD","checks":[],"errors":[]}
+report={"utc":datetime.now(timezone.utc).isoformat(),"manufacturing":"HOLD","status":"ERROR_HOLD","checks":[],"errors":[]}
 try:
- entries=json.loads(manifest.read_text())["files"]
- if not entries: result["errors"].append("No RC18 source files installed; verification unavailable")
- for e in entries:
-  p=Path(e["path"])
-  if p.is_absolute() or ".." in p.parts: raise ValueError("unsafe input path")
-  f=(base/"inputs"/p).resolve()
-  if not f.is_relative_to((base/"inputs").resolve()) or not f.is_file(): raise ValueError("missing "+str(p))
-  digest=hashlib.sha256(f.read_bytes()).hexdigest()
-  result["checks"].append({"path":str(p),"sha256":digest})
-  if digest!=e["sha256"]: result["errors"].append("SHA256 mismatch "+str(p))
-except (ValueError,KeyError,OSError,TypeError) as exc: result["errors"].append(str(exc))
-if not result["errors"]:result["status"]="INTEGRITY_OK_DESIGN_HOLD"
-(base/"report.json").write_text(json.dumps(result,indent=2)+"\n")
-print(json.dumps(result))
-if result["errors"]:raise SystemExit(1)
+    gates=json.loads((base/"inputs/release_gates.json").read_text(encoding="utf-8"))
+    expected={"project":"RC18","manufacturing":"HOLD","requirements":41,"missing_fit_parts":64,"release_blockers":17}
+    for k,v in expected.items():
+        if gates.get(k)!=v:report["errors"].append(f"unexpected {k}: {gates.get(k)!r}")
+    if gates.get("native_erc_drc_verified_for_current_candidate") is not False:
+        report["errors"].append("Native verification status changed; manual review required")
+    vendor=gates.get("vendor_pin_audit",{})
+    if (vendor.get("devices"),vendor.get("pins"),vendor.get("incorrect_electrical_types"))!=(3,21,12):
+        report["errors"].append("vendor audit baseline changed; manual review required")
+    report["checks"].append("RC18 public-safe HOLD gate baseline")
+    manifest=json.loads((base/"inputs/manifest.json").read_text(encoding="utf-8"))
+    entries=manifest["files"]
+    for item in entries:
+        rel=Path(item["path"])
+        root=(base/"inputs").resolve()
+        target=(root/rel).resolve()
+        if rel.is_absolute() or not target.is_relative_to(root) or not target.is_file():
+            report["errors"].append("invalid/missing input "+str(rel));continue
+        digest=hashlib.sha256(target.read_bytes()).hexdigest()
+        if digest!=item["sha256"]:report["errors"].append("hash mismatch "+str(rel))
+        report["checks"].append(str(rel))
+    if not entries:report["checks"].append("No design-source hash audit configured; baseline only")
+except (OSError,ValueError,KeyError,TypeError) as exc:
+    report["errors"].append(str(exc))
+if not report["errors"]:report["status"]="BASELINE_OK_DESIGN_HOLD"
+(base/"report.json").write_text(json.dumps(report,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+print(json.dumps(report,ensure_ascii=False))
+if report["errors"]:raise SystemExit(1)
