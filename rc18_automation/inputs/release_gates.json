@@ -1,0 +1,14 @@
+{
+  "project": "RC18",
+  "stage": "E25S",
+  "manufacturing": "HOLD",
+  "requirements": 41,
+  "missing_fit_parts": 64,
+  "release_blockers": 17,
+  "vendor_pin_audit": {
+    "devices": 3,
+    "pins": 21,
+    "incorrect_electrical_types": 12
+  },
+  "native_erc_drc_verified_for_current_candidate": false
+}
