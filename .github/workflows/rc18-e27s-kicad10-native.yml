@@ -1,0 +1,48 @@
+name: RC18 E27S KiCad 10.0.6 Native ERC DRC HOLD
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/rc18-e27s-kicad10-native.yml'
+      - 'ci/rc18_e27s_native_gate.py'
+      - 'rc18_inputs/RC18_E27S_PIN_LABEL_ECO_CANDIDATE_NONFAB_HOLD_20261015.zip'
+permissions:
+  contents: read
+jobs:
+  rc18-native-e27s-hold:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Checkout read-only E27S project
+        uses: actions/checkout@v4
+      - name: Verify exact input archive and 40-file project manifest (not native)
+        run: python3 ci/rc18_e27s_native_gate.py --preflight
+      - name: Pull official immutable version KiCad 10.0.6 Docker image
+        run: docker pull kicad/kicad:10.0.6
+      - name: Put Docker KiCad 10.0.6 CLI on PATH
+        shell: bash
+        run: |
+          mkdir -p .ci-bin
+          cat > .ci-bin/kicad-cli <<'SH'
+          #!/bin/sh
+          exec docker run --rm --network=none --user "$(id -u):$(id -g)" --env HOME=/tmp --mount "type=bind,source=$GITHUB_WORKSPACE,target=$GITHUB_WORKSPACE" --workdir "$GITHUB_WORKSPACE" --entrypoint /bin/sh kicad/kicad:10.0.6 -c 'set -eu; mkdir -p "$HOME/.config/kicad/10.0"; for t in fp-lib-table sym-lib-table; do if [ -f "/usr/share/kicad/template/$t" ]; then cp "/usr/share/kicad/template/$t" "$HOME/.config/kicad/10.0/$t"; else echo "WARNING: template $t absent" >&2; fi; done; exec kicad-cli "$@"' kicad-wrapper "$@"
+          SH
+          chmod +x .ci-bin/kicad-cli
+          echo "$GITHUB_WORKSPACE/.ci-bin" >> "$GITHUB_PATH"
+          .ci-bin/kicad-cli version
+      - name: Native ERC and DRC on disposable board copy, never fab
+        run: python3 ci/rc18_e27s_native_gate.py
+      - name: Save evidence even if checks fail
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RC18-E27S-KICAD10-NATIVE-NONFAB-${{ github.run_id }}
+          path: |
+            native_gate_results/AUDIT_RESULT.json
+            native_gate_results/E27S_ERC.rpt
+            native_gate_results/E27S_DRC_REFILL.rpt
+            native_gate_results/E27S_DRC_FINAL.rpt
+            native_gate_results/*_CLI.log
+            native_gate_results/kicad-cli-version.txt
+          if-no-files-found: warn
+          retention-days: 14
