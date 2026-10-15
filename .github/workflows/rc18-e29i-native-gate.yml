@@ -1,0 +1,39 @@
+name: RC18 E29I KiCad10 Native Gate (NONFAB)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  e29i:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require exact E29I input archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f rc18_automation/inputs/RC18_E29I_2_TI_PACKAGE_CANDIDATES_NONFAB.zip || { echo "HOLD: E29I ZIP absent. No validation attempted."; exit 1; }
+          echo "17ff44e2ca2936436597cfc023799099cb78cd81954f63e2df408b437c7d43f0  rc18_automation/inputs/RC18_E29I_2_TI_PACKAGE_CANDIDATES_NONFAB.zip" | sha256sum -c -
+          mkdir -p work results
+          unzip -q rc18_automation/inputs/RC18_E29I_2_TI_PACKAGE_CANDIDATES_NONFAB.zip -d work
+      - name: Pull KiCad 10.0.6
+        run: docker pull kicad/kicad:10.0.6
+      - name: Native ERC, netlist and DRC on disposable copy
+        shell: bash
+        run: |
+          set -uo pipefail
+          root=$(find work -name RC18_RevB_SI.kicad_sch -printf '%h\n' | head -1)
+          test -n "$root" || exit 1
+          kicad() { docker run --rm --network=none --user "$(id -u):$(id -g)" -e HOME=/tmp -v "$PWD:/workspace" -w /workspace --entrypoint kicad-cli kicad/kicad:10.0.6 "$@"; }
+          kicad version > results/version.txt
+          kicad sch export netlist --output results/E29I.net "$root/RC18_RevB_SI.kicad_sch" > results/netlist.log 2>&1; echo $? > results/netlist.exit
+          kicad sch erc --format report --output results/E29I_ERC.rpt "$root/RC18_RevB_SI.kicad_sch" > results/erc.log 2>&1; echo $? > results/erc.exit
+          kicad pcb drc --format report --output results/E29I_DRC.rpt "$root/RC18_RevB_SI.kicad_pcb" > results/drc.log 2>&1; echo $? > results/drc.exit
+          echo "NONFAB HOLD: results are diagnostic; no release." > results/RELEASE_STATUS.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: E29I-NATIVE-DIAGNOSTIC-NONFAB
+          path: results/
+          retention-days: 14
