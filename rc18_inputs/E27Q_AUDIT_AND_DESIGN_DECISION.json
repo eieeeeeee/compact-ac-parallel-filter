@@ -42,6 +42,7 @@
   "source_FROZEN_master_modified": false,
   "public_GitHub_main_modified": false,
   "PRE_VERIFIED": "HIGH_PRODUCER_MISSING",
+  "rail_requirement_mismatch": "P02 historically says 5V/3.3V; E27P 02_POWER_RAILS.sch exposes 7V_DRV/3V3. Reconcile before rail architecture freeze",
   "alternate_C2_C4_real_circuit": "NOT_VERIFIED",
   "decision": "Si MOSFET remains comparison/reference architecture; optimize within constraints, do not prematurely replace",
   "manufacturing": "HOLD_NO_POWER_NO_AC_NO_ORDER_NO_FAB",
