@@ -1,0 +1,37 @@
+name: YK66 AC100V R-C ngspice Crosscheck (NONFAB)
+on:
+  push:
+    branches: [yk66-ac100v-mvp-20261016]
+    paths:
+      - 'simulations/yk66_rc_12v_tone.cir'
+      - 'simulations/yk66_rc_100v_passive.cir'
+      - 'tools/yk66_spice_crosscheck.py'
+      - '.github/workflows/yk66-spice-nonfab.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  passive-model-only:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install ngspice
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ngspice
+      - name: Run model-only ngspice AC sweeps
+        run: |
+          mkdir -p results
+          ngspice -b -o results/yk66_tone.log simulations/yk66_rc_12v_tone.cir
+          ngspice -b -o results/yk66_passive.log simulations/yk66_rc_100v_passive.cir
+          test -s results/yk66_ngspice_12v_tone.dat
+          test -s results/yk66_ngspice_100v_passive.dat
+      - name: Independent math crosscheck
+        run: python tools/yk66_spice_crosscheck.py
+      - name: Store evidence, not fabrication outputs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: YK66-NGSPICE-LOW-VOLTAGE-MODEL-ONLY
+          path: results/
+          retention-days: 30
