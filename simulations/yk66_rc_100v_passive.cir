@@ -1,0 +1,16 @@
+YK66 HYPOTHETICAL passive 100V RMS fundamental into series RC - NOT A MAINS DESIGN
+* AC phasor amplitude 100 used as RMS-normalized current comparison only.
+* Not a safe insulation / X2 selection / 100V switch bridge representation.
+Vgrid drive 0 DC 0 AC 100
+Rdam drive shunt 4.7
+Rshunt shunt cap 0.33
+Ccouple cap 0 1u
+.control
+set noaskquit
+set wr_singlescale
+ac lin 11 50 60
+let grid_current_mag = mag(i(vgrid))
+wrdata results/yk66_ngspice_100v_passive.dat grid_current_mag
+quit
+.endc
+.end
