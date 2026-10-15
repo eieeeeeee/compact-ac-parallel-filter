@@ -1,0 +1,98 @@
+{
+  "stage": "E27Q",
+  "date": "2026-10-15",
+  "nature": "E27P_KICAD_EVIDENCE_BASED_SIMPLIFICATION_PRE_FREEZE_NONFAB",
+  "source_hashes": {
+    "e27p": "f83469afb17b854eaa9bebff13a463b0bdfc192fbf4137fe56f7e347301a707a",
+    "req": "8b20b010ed8c9437839a37cd9cb57b7b21e910836e220c92dd6dcaa099a38e14",
+    "block": "5d747ad7b07533a3907d1a6710f59bbb2b3e2ff225a533456c29f5a37360a2ef"
+  },
+  "cost_sha256": "a14f137dbe53c7e8a0b8bb84914759583cee39e8b882a843f244e0edcf9ae8df",
+  "native_sha256": "876878d3ab7d30ce318ce97b7a67eb51a97b39843898c60793cd2cee2a0f85ab",
+  "schematic_total": 199,
+  "FIT": 159,
+  "DNP": 40,
+  "unplaced_FIT": 64,
+  "sheets": 15,
+  "old_BOM_cost_rows": 159,
+  "unpriced_refs": 46,
+  "old_partial_cost_known_JPY": 3564.84,
+  "old_30board_low_scenario_JPY": 4062.21,
+  "old_30board_mid_scenario_JPY": 4751.89,
+  "old_30board_high_scenario_JPY": 6257.08,
+  "old_30board_low_gap_to_3500_JPY": 562.21,
+  "unplaced_64_old_partial_cost_JPY": 1654.94,
+  "unplaced_64_unpriced_count": 46,
+  "verified_cost_savings_JPY": 0,
+  "released_parts_deleted": 0,
+  "actual_E27P_KICAD_changes": 0,
+  "native_kicad": "10.0.6 previously executed on E27P, not rerun in E27Q",
+  "E27P_native_failure": {
+    "ERC_errors": 0,
+    "ERC_warnings": 3,
+    "DRC_geometric_violations": 0,
+    "unconnected_nets": 3,
+    "sch_pcb_parity_missing": 64,
+    "native_full_PASS": false
+  },
+  "requirements": 41,
+  "release_stop_catalog": 17,
+  "technical_env_obstacle_resolved": 1,
+  "design_release_complete": false,
+  "source_FROZEN_master_modified": false,
+  "public_GitHub_main_modified": false,
+  "PRE_VERIFIED": "HIGH_PRODUCER_MISSING",
+  "alternate_C2_C4_real_circuit": "NOT_VERIFIED",
+  "decision": "Si MOSFET remains comparison/reference architecture; optimize within constraints, do not prematurely replace",
+  "manufacturing": "HOLD_NO_POWER_NO_AC_NO_ORDER_NO_FAB",
+  "most_expensive_components_old_partial_only": [
+    {
+      "ref": "U1",
+      "unit_price": 482.8323500000001
+    },
+    {
+      "ref": "U3",
+      "unit_price": 438.6
+    },
+    {
+      "ref": "U6",
+      "unit_price": 273.2
+    },
+    {
+      "ref": "U1001",
+      "unit_price": 257.56
+    },
+    {
+      "ref": "U1201",
+      "unit_price": 257.56
+    },
+    {
+      "ref": "U1003",
+      "unit_price": 230.9
+    },
+    {
+      "ref": "U1601",
+      "unit_price": 196.76
+    },
+    {
+      "ref": "U1302",
+      "unit_price": 147.83
+    },
+    {
+      "ref": "U1101",
+      "unit_price": 131.03
+    },
+    {
+      "ref": "U1102",
+      "unit_price": 131.03
+    },
+    {
+      "ref": "U701",
+      "unit_price": 120.56
+    },
+    {
+      "ref": "U801",
+      "unit_price": 113.72
+    }
+  ]
+}
