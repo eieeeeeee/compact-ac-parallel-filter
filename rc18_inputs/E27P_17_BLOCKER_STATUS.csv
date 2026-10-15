@@ -1,0 +1,18 @@
+number,code,prior_severity,status_E27P,native_evidence_and_remaining_gate
+1,E25R-001,HARD_STOP,OPEN,64 FIT parts missing on PCB; native parity explicitly confirms 64 missing footprints
+2,E25R-002,HARD_STOP,OPEN,3 unresolved vendor package IDs U1003/U1005/U1302; ERC warns
+3,E25R-003,HARD_STOP,OPEN,Native schematic-parity incomplete: 64 missing FIT parts
+4,E25O-NET,HARD_STOP,OPEN,Native complete pin/net/footprint parity cannot pass with missing 64
+5,E25O-SCH,NOT_VERIFIED,OPEN_PARTIAL,"Native ERC: 0 errors, 3 missing-footprint warnings; not 0/0"
+6,E25O-PCB,NOT_VERIFIED,OPEN_PARTIAL,Native geometric DRC 0; 3 unrouted and 64 footprint-parity issues remain
+7,E25O-SW,HARD_STOP,OPEN,MOSFET drain separation and source-referenced VGS safety unproven
+8,E25O-PGATE,HARD_STOP,OPEN,Legacy R303 GPIO driver safety still pending independent audit
+9,E25O-PV,HARD_STOP,OPEN,VOM1271T fault-off and fail-off timing not proven
+10,E25O-PRE,HARD_STOP,OPEN,220R PRE physical path and PRE_VERIFIED independent source incomplete
+11,E25O-OCP,HARD_STOP,OPEN,L601 independent cycle-peak protection missing
+12,E25O-DSP,NOT_VERIFIED,OPEN,Latest S1/HF19 128 corners NOT_RUN
+13,E25O-TIME,NOT_VERIFIED,OPEN,2.909MHz PWM/ADC deadline NOT_RUN
+14,E25O-FIT,NOT_VERIFIED,OPEN,50x40mm with 159 FIT and all requirements NOT_VERIFIED
+15,E25O-MFG,HARD_STOP,OPEN,Three vendor placeholder footprints + incomplete BIM/BOM
+16,E25O-HISTORY,NOT_VERIFIED,OPEN,Requirements tracked but not signed/released
+17,E25R-NATIVE,TOOL_BLOCKED,TECHNICAL_GATE_RESOLVED,GitHub Actions ran exact KiCad 10.0.6 ERC and DRC with official reports; design release still blocked
