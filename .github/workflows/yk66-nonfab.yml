@@ -1,0 +1,38 @@
+name: YK66 AC100V Nonfab Analytical Checks
+on:
+  push:
+    branches: [yk66-ac100v-mvp-20261016]
+    paths:
+      - 'tools/yk66_envelope.py'
+      - 'tests/test_yk66_envelope.py'
+      - '.github/workflows/yk66-nonfab.yml'
+      - 'docs/YK66_AC100V_ENGINEERING_SCREEN_R1.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  math-only:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify analytical calculations
+        run: python -m unittest discover -s tests -p 'test_yk66_envelope.py' -v
+      - name: Build screening report (never fabrication approval)
+        run: python tools/yk66_envelope.py --out results/yk66_envelope.json --csv results/yk66_frequency_envelope.csv
+      - name: Enforce HOLD marker for this unverified AC100V architecture
+        run: |
+          python - <<'PY'
+          import json
+          d=json.load(open("results/yk66_envelope.json", encoding="utf-8"))
+          assert d["release_status"]=="NONFAB_HOLD"
+          assert d["blocking_gates"]
+          print("MATH_PASS; AC100V_NATIVE_DESIGN_NOT_VALIDATED; NONFAB_HOLD")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: YK66-MATH-ONLY-NONFAB
+          path: results/
+          retention-days: 30
