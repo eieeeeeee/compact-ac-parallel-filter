@@ -1,0 +1,43 @@
+name: RC18 E27N KiCad 10.0.6 Native ERC DRC HOLD
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/rc18-e27n-kicad10-native.yml'
+      - 'ci/rc18_e27n_native_gate.py'
+      - 'rc18_inputs/RC18_E27N_KICAD17_PIN_TYPE_CANDIDATE_NONFAB_HOLD_20261015.zip'
+permissions:
+  contents: read
+jobs:
+  rc18-native-e27n-hold:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Checkout read-only E27N project
+        uses: actions/checkout@v4
+      - name: Verify exact input archive and 40-file project manifest (not native)
+        run: python3 ci/rc18_e27n_native_gate.py --preflight
+      - name: Install KiCad 10 (exact 10.0.6 enforced at native stage)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y software-properties-common
+          sudo add-apt-repository -y ppa:kicad/kicad-10.0-releases
+          sudo apt-get update
+          sudo apt-get install -y kicad
+          kicad-cli version
+      - name: Native ERC and DRC on disposable board copy, never fab
+        run: python3 ci/rc18_e27n_native_gate.py
+      - name: Save evidence even if checks fail
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RC18-E27N-KICAD10-NATIVE-NONFAB-${{ github.run_id }}
+          path: |
+            native_gate_results/AUDIT_RESULT.json
+            native_gate_results/E27N_ERC.rpt
+            native_gate_results/E27N_DRC_REFILL.rpt
+            native_gate_results/E27N_DRC_FINAL.rpt
+            native_gate_results/*_CLI.log
+            native_gate_results/kicad-cli-version.txt
+          if-no-files-found: warn
+          retention-days: 14
