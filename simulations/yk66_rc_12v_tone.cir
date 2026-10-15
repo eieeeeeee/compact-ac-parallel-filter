@@ -1,0 +1,16 @@
+YK66 analytical RC injection tone, low-voltage AC small-signal only - NOT A MAINS DESIGN
+* AC source amplitude is 12 V peak small-signal (phasor).
+* Independent current limiter, isolator, surge, and actual driver are NOT modeled.
+Vtone drive 0 DC 0 AC 12
+Rdam drive shunt 4.7
+Rshunt shunt cap 0.33
+Ccouple cap 0 1u
+.control
+set noaskquit
+set wr_singlescale
+ac lin 26 5000 30000
+let tone_current_mag = mag(i(vtone))
+wrdata results/yk66_ngspice_12v_tone.dat tone_current_mag
+quit
+.endc
+.end
