@@ -25,7 +25,7 @@ jobs:
           mkdir -p .ci-bin
           cat > .ci-bin/kicad-cli <<'SH'
           #!/bin/sh
-          exec docker run --rm --network=none --user "$(id -u):$(id -g)" --env HOME=/tmp --mount "type=bind,source=$GITHUB_WORKSPACE,target=$GITHUB_WORKSPACE" --workdir "$GITHUB_WORKSPACE" --entrypoint kicad-cli kicad/kicad:10.0.6 "$@"
+          exec docker run --rm --network=none --user "$(id -u):$(id -g)" --env HOME=/tmp --mount "type=bind,source=$GITHUB_WORKSPACE,target=$GITHUB_WORKSPACE" --workdir "$GITHUB_WORKSPACE" --entrypoint /bin/sh kicad/kicad:10.0.6 -c 'set -eu; mkdir -p "$HOME/.config/kicad/10.0"; for t in fp-lib-table sym-lib-table; do if [ -f "/usr/share/kicad/template/$t" ]; then cp "/usr/share/kicad/template/$t" "$HOME/.config/kicad/10.0/$t"; else echo "WARNING: template $t absent" >&2; fi; done; exec kicad-cli "$@"' kicad-wrapper "$@"
           SH
           chmod +x .ci-bin/kicad-cli
           echo "$GITHUB_WORKSPACE/.ci-bin" >> "$GITHUB_PATH"
