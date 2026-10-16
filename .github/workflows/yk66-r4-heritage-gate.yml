@@ -1,0 +1,34 @@
+name: YK66 R4 Heritage Evidence Check (NONFAB)
+on:
+  push:
+    branches: [yk66-ac100v-mvp-20261016]
+    paths:
+      - 'historical/YK66_P15_BANDPASS_SHUNT_SWEEP_20261015.csv'
+      - 'tools/yk66_r4_heritage_gate.py'
+      - '.github/workflows/yk66-r4-heritage-gate.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  historical-ideal-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify full P15 case count and both grid frequencies
+        run: python3 tools/yk66_r4_heritage_gate.py --out /tmp/yk66_r4_screen.json
+      - name: Verify this is NEVER a mains or fabrication gate
+        run: |
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/yk66_r4_screen.json'))
+          assert d['all_cases']==324
+          assert d['50Hz_ideal_candidates']==21
+          assert d['50Hz_and_60Hz_ideal_candidates']==15
+          assert not d['physical_two_terminal_controller_exists']
+          assert not d['ac100v_electrical_safety_validated']
+          assert not d['manufacturing_release']
+          print('HISTORICAL_MATH_PASS; FAB_HOLD; MAINS_HOLD')
+          PY
