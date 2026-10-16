@@ -1,0 +1,25 @@
+name: YK66 R9 international evidence phase model (NONFAB)
+on:
+  push:
+    branches: [yk66-ac100v-mvp-20261016]
+    paths:
+      - 'tools/yk66_r9_phase_delay_guard.py'
+      - '.github/workflows/yk66-r9-phase-guard.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  theoretical-phase-regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate ideal 30kHz attenuation and negative-gain cases
+        run: python tools/yk66_r9_phase_delay_guard.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: YK66-R9-IDEAL-PHASE-SWEEP-NONFAB
+          path: yk66_r9_phase_sweep.csv
+          retention-days: 30
