@@ -1,0 +1,11 @@
+source,stage,artifact_evidence,action,limits
+20-Sep-wall_filter,2026-09-20,Library method catalog wall_filter v0.4 to v0.5 case and DRC,Reuse mechanical EMC process,No present PCB or mains qualification
+RC18 S1 128-corner and HF19,2026-09-20 onward,01_METHOD_CATALOG_20260920_ONWARD.md,Reuse scripts/assumption provenance and corner method,Model-only PASS on historical frozen values
+RC18 KiCad R2.3.1C,2026-10-10,GitHub Actions 38014998876,Reuse Native KiCad CLI release flow,Old variant only
+RC18 E29I,2026-10-15,Library E29I ZIP SHA 17ff44e2ca...,Preserve 16-sheet native reference and FIT list,70x60 comparison unapproved
+RC18 E50,2026-10-16,Library E50 EVIDENCE and FINDINGS,Reuse copper-island and safety gate audit,NOT native DRC or complete copper
+YK66 P13,2026-10-15,Library YK66_P13_DECISION.md,Record upstream sensing invalidity,Not transferable to two-terminal plug-in
+YK66 P14,2026-10-15,Library YK66_P14_ARCHITECTURE_DECISION.md,Use two-terminal admittance derivation,Ideal only and high current
+YK66 P15,2026-10-15,Library YK66_P15_BANDPASS_SHUNT_SWEEP.csv,Recheck 50/60 gate 21/15,No physical transconductance stage
+YK66 R3,2026-10-16,GitHub tools/yk66_bench_r3.py,Reuse 10kHz mathematical screening,Separate assumptions from P15
+AC100V outcome,FUTURE,No tested AC100V hardware,Design and qualify protection with professional review,FAB_HOLD and MAINS_HOLD
