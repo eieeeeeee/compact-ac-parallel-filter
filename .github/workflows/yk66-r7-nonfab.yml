@@ -1,0 +1,37 @@
+name: YK66 R7 9-case + 810-filter analytic gate (NONFAB)
+on:
+  push:
+    branches: [yk66-ac100v-mvp-20261016]
+    paths:
+      - 'tools/yk66_r7_oneboard_screen.py'
+      - '.github/workflows/yk66-r7-nonfab.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  r7-math-only:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Nonfabrication analytical screen
+        run: python tools/yk66_r7_oneboard_screen.py > r7_math.json
+      - name: Verify nine ports, 810 screens, zero full matches, hold
+        run: |
+          python - <<'PY'
+          import json
+          r=json.load(open("r7_math.json"))
+          assert r["cases"]==9 and r["model_sweeps"]==810
+          assert r["ideal_screen_passes"]==0
+          assert r["max_S_for_3db"]>4.20
+          assert r["manufacturing_allowed"] is False
+          assert r["mains_connection_allowed"] is False
+          print("R7 theoretical regression PASS; MAINS_HOLD / FAB_HOLD")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: YK66-R7-THEORETICAL-NONFAB
+          path: r7_math.json
+          retention-days: 30
