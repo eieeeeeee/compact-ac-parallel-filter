@@ -1,0 +1,38 @@
+name: YK66 R12 PLC magnetic coupling faults (NONFAB)
+on:
+  push:
+    branches: [yk66-ac100v-mvp-20261016]
+    paths:
+      - 'tools/yk66_r12_plc_coupling_fault_screen.py'
+      - '.github/workflows/yk66-r12-plc-coupling.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  magnetic-coupling-screen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Generate mains coupling IDEALIZED model results
+        run: python tools/yk66_r12_plc_coupling_fault_screen.py --outdir results/yk66_r12
+      - name: Enforce cost frontier and nonfabrication release
+        run: |
+          python - <<'PY'
+          import json
+          x=json.load(open('results/yk66_r12/summary.json'))
+          assert x['status']=='MAINS_FAB_HOLD'
+          assert x['driven_cases']==216 and x['off_fault_cases']==972
+          assert x['cost']['AFE_3part_remaining_to_target_JPY']==392.5
+          assert x['cost']['OPA_3part_remaining_to_target_JPY']==1081.1
+          assert not x['mains_allowed'] and not x['manufacturing_allowed']
+          assert not x['isolation_certified_for_YK66']
+          print('R12 analytical fault/cost gate PASS; safety/manufacturing FAIL/HOLD')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: YK66-R12-IDEAL-PLC-COUPLER-NONFAB
+          path: results/yk66_r12
+          retention-days: 30
