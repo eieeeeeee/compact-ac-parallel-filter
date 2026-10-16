@@ -1,0 +1,42 @@
+name: YK66 R11 bounded virtual conductance (NONFAB)
+on:
+  push:
+    branches: [yk66-ac100v-mvp-20261016]
+    paths:
+      - 'tools/yk66_r11_dm_envelope.py'
+      - 'tests/test_yk66_r11_dm_envelope.py'
+      - '.github/workflows/yk66-r11-dm-environment.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  bounded-controller-math-only:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Independent regression tests (not mains tests)
+        run: PYTHONPATH=tools python -m unittest discover -s tests -p test_yk66_r11_dm_envelope.py -v
+      - name: Generate 9-port and 64-variant model evidence
+        run: python tools/yk66_r11_dm_envelope.py --outdir results/yk66_r11
+      - name: Assert current frontier, rejects and physical safety HOLD
+        run: |
+          python - <<'PY'
+          import json
+          r=json.load(open('results/yk66_r11/summary.json'))
+          assert r['status']=='NONFAB_MAINS_HOLD'
+          assert r['cases']==9 and r['model_variants']==64
+          assert r['20mA_3db_100mV_cases']==3
+          assert r['passes_all_math_gates']==0
+          assert r['worst_3db_100mV_mA']>297.8
+          assert r['20mA_all9_3db_max_noise_mV']<6.72
+          assert r['manufacturing_allowed'] is False and r['mains_allowed'] is False
+          print('R11 numerical regression passed; physical hardware NOT validated; MAINS/FAB HOLD')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: YK66-R11-MODEL-NONFAB
+          path: results/yk66_r11
+          retention-days: 30
