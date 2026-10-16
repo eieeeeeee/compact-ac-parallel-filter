@@ -1,0 +1,39 @@
+name: YK66 R5 2026-09-20 Heritage P15 Robustness (NONFAB)
+on:
+  push:
+    branches: [yk66-ac100v-mvp-20261016]
+    paths:
+      - 'tools/yk66_r5_heritage_robustness.py'
+      - 'historical/YK66_P15_BANDPASS_SHUNT_SWEEP_20261015.csv'
+      - '.github/workflows/yk66-r5-heritage-robustness.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  model-only:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Recalculate original P15 and missed robustness conditions
+        run: python3 tools/yk66_r5_heritage_robustness.py --out results/yk66_r5_gate.json
+      - name: Enforce NONFAB and mains HOLD
+        run: |
+          python3 - <<'PY'
+          import json
+          x=json.load(open('results/yk66_r5_gate.json'))
+          assert x['total_historical_cases']==324
+          assert x['50hz_only_pass']==21 and x['50hz_and_60hz_pass']==15
+          assert x['cases_amplifying_1_to_5khz']==15
+          assert x['cases_robust_over_all_9_source_load_pairs']==0
+          assert x['mains_authorized'] is False and x['manufacturing_authorized'] is False
+          assert x['hardware_validated'] is False
+          print('R5 historical model reproduced; physical hardware/Mains/FAB remain HOLD')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: YK66-R5-P15-IDEAL-MODEL-NONFAB
+          path: results/yk66_r5_gate.json
+          retention-days: 90
