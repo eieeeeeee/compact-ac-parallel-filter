@@ -1,0 +1,15 @@
+Ref,Block,Candidate,Quantity,1pc_price_JPY_excl_tax,Status,Blocking_evidence
+J1,AC input,L-N input interface,1,,UNSELECTED,Enclosure and accessibility
+F1,Input fuse,AC rated protective assembly,1,,UNSELECTED,Fault interruption and thermal coordination
+MOV1,Surge,Rated line-to-line MOV thermal path,1,,UNSELECTED,Surge and MOV short coordination
+CX1,Optional passive benchmark,22nF 310Vac X2 KEMET R46 family,0_or_1,,NOT_ACTIVE_INJECTION,Series-with-mains prohibited
+U1,Isolated AC-DC,MEAN WELL IRM-03-12 12V 3W,1,915,PRELIMINARY,Source/stock/space/whole-device approvals
+U2,Analog compensation,TI OPA197 GBW 10MHz,1,,PRELIMINARY,Not a guaranteed current driver or line-rated device
+T_SENSE,Terminal voltage isolation,Wideband qualified isolation interface,1,,BLOCKED,Isolation rating/phase/surge and actual selected MPN
+DRV1,Current injection stage,Bounded current analog driver,1,,BLOCKED,Saturation/current SOA/phase/thermal
+T_INJ,High-frequency power injection,Rated mains-side isolated coupling network,1,,BLOCKED,Line freq 50/60Hz isolation and short fault
+CMP1,Independent hardware trip,Separate comparator and latch,1,,BLOCKED,Actual trip and limit parts
+DIS1,Independent fail-open path,Mains-rated disconnect and fault path,1,,BLOCKED,Welded contact and residual current fault
+R_C,Analog feedback network,Common SMT resistors/capacitors,TBD,,BLOCKED,Loop stability/values/voltages
+PCB,Board,Single AC100V 50-60Hz designed board,1,,BLOCKED,Isolation spacing and KiCad ERC/DRC
+ASM,Assembly,1pc PCB/fab/SMT/transport/tax,1,,UNQUOTED,All-in <=3500 JPY excludes stencil only
