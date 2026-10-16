@@ -1,0 +1,15 @@
+Stage,Function,Candidate,Qty,ReferenceJPYExTax,Status,BlockingEvidence
+ELV,Isolated current-limited DC <=12V,Laboratory supply,1,,BENCH_ONLY,Verified supply isolation and current limiting
+ELV,10kHz disturbance source,Signal generator,1,,BENCH_ONLY,Measured source impedance and return
+ELV,10-ohm port,Reference resistor,1,,BENCH_ONLY,Frequency/thermal characteristics
+ELV,Noise measurement,Scope and probes,1,,BENCH_ONLY,Bandwidth floor calibration and raw data
+ELV,Opposing-current driver,Unselected,1,,BLOCKED,Physical independent fail-OFF and stability
+ELV,0.1uF or 1uF shunt comparison,Unselected,2,,IDEAL_MATH_ONLY,Voltage ESR ESL and topology
+MAINS_CANDIDATE,AC/DC 12V 3W,MEAN WELL IRM-03-12,1,915,REFERENCE_ONLY,Complete product safety review
+MAINS_CANDIDATE,Legacy MCU,STM32G474CBT6,1,1300,HISTORICAL_ESTIMATE,Current unit quote firmware power
+MAINS_BLOCKER,Line sensing isolation,Unselected,1,,BLOCKED,Qualified barrier and bandwidth
+MAINS_BLOCKER,Isolation transformer and injection coupler,Unselected,1,,BLOCKED,Surge 50/60Hz and all single faults
+MAINS_BLOCKER,Independent fault and interruption hardware,Unselected,1,,BLOCKED,Verified safety scheme and fault current
+MAINS_BLOCKER,PCB assembly enclosure thermal protection,Unselected,1,,BLOCKED,Manufacturing and safety evidence
+PASSIVE_BENCHMARK,Across-line X2 only NOT series injection,KEMET R46 family,1,,NOT_FOR_SERIES,Manufacturer restrictions and independent design review
+TOTAL,PCB plus all parts plus assembly goal excluding stencil,,1,3500,TARGET_UNPROVEN,Unknown required safety costs
