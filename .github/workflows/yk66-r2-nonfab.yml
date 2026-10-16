@@ -1,0 +1,39 @@
+name: YK66 R2 Isolated DM Architecture Math (NONFAB)
+on:
+  push:
+    branches: [yk66-ac100v-mvp-20261016]
+    paths:
+      - 'tools/yk66_cancel_screen_r2.py'
+      - 'tests/test_yk66_cancel_screen_r2.py'
+      - 'docs/YK66_AC100V_ARCHITECTURE_R2.md'
+      - '.github/workflows/yk66-r2-nonfab.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  nonfab-r2:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: R2 analytical unit tests
+        run: python -m unittest discover -s tests -p 'test_yk66_cancel_screen_r2.py' -v
+      - name: Emit reproducible mathematical evidence
+        run: python tools/yk66_cancel_screen_r2.py --json results/yk66_r2.json --csv results/yk66_r2_scenarios.csv
+      - name: Enforce safety HOLD and proof fields
+        run: |
+          python - <<'PY'
+          import json
+          d = json.load(open("results/yk66_r2.json"))
+          assert d["status"] == "NONFAB_HOLD"
+          assert not any(d["release_gates"].values())
+          assert 0.016 < d["phase_budget_at_30khz"][-1]["max_uncompensated_latency_us"] < 0.017
+          print("R2 MATH_PASS; MAINS_HOLD; FAB_HOLD")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: YK66-R2-NONFAB-MATH
+          path: results/yk66_r2*
+          retention-days: 30
