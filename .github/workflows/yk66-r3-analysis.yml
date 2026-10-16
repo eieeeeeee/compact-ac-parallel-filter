@@ -1,0 +1,37 @@
+name: YK66 R3 analytical screen - NEVER mains release
+on:
+  push:
+    branches:
+      - yk66-ac100v-mvp-20261016
+    paths:
+      - 'tools/yk66_bench_r3.py'
+      - 'tests/test_yk66_bench_r3.py'
+      - '.github/workflows/yk66-r3-analysis.yml'
+  workflow_dispatch:
+jobs:
+  analytic-only:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run R3 math tests (not a PCB or mains safety release)
+        run: python3 -m unittest discover -s tests -p 'test_yk66_bench_r3.py' -v
+      - name: Reproduce numeric model
+        run: python3 tools/yk66_bench_r3.py --json /tmp/yk66_r3.json --csv /tmp/yk66_r3_points.csv
+      - name: Assert no fabrication / mains authorization
+        run: |
+          python3 - <<'PY'
+          import json
+          with open('/tmp/yk66_r3.json',encoding='utf-8') as f: r=json.load(f)
+          assert r['status']=='NONFAB_HOLD_MAINS_HOLD'
+          assert r['mains_authorized'] is False
+          assert r['kicad_manufacturing_release'] is False
+          assert r['model_only'] is True
+          assert abs(r['center']['reduction_db_positive_means_better']-6.012036)<0.00001
+          assert r['guard']['worst_reduction_db'] >= -0.5
+          print('R3 model-only PASS: MAINS and FAB HOLD')
+          PY
