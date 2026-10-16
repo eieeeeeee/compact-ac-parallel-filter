@@ -80,6 +80,7 @@ def main():
     ap.add_argument("--out",default="yk66_r5_gate.json")
     args=ap.parse_args()
     info=screen(args.csv)
+    Path(args.out).parent.mkdir(parents=True,exist_ok=True)
     Path(args.out).write_text(json.dumps(info,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     print(json.dumps({k:v for k,v in info.items() if k!="cases"},ensure_ascii=False))
 if __name__=="__main__":main()
