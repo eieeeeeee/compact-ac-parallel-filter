@@ -60,7 +60,7 @@ jobs:
       - name: Enforce native results (never infer a pass)
         shell: bash
         run: |
-          python3 yk66-revat/evaluate_native_gate.py reports
+          python3 yk66-revat/evaluate_native_gate_v2.py reports
       - name: Upload findings and source even on failure
         if: always()
         uses: actions/upload-artifact@v4
