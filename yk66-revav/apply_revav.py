@@ -73,6 +73,29 @@ for net, paths in routes["tracks"].items():
                           ("F.Cu", "B.Cu")[layer], int(net),
                           stamp(f"seg:{net}:{path_id}:{j}")))
             s += 1
+# Rev.AV.1: correct two pad-copper collisions found by native KiCad DRC.
+# Keep F.Cu, 2-layer PCB, and all net endpoints unchanged.
+def detour(old_start, old_end, net, points):
+    global lines
+    matching=[i for i,line in enumerate(lines)
+        if ("(start "+old_start+") (end "+old_end+")") in line
+        and ("(net %s)"%net) in line
+        and '(layer "F.Cu")' in line]
+    assert len(matching)==1,(net,old_start,old_end,matching)
+    pos=matching[0]
+    amended=[]
+    for i,(a,b) in enumerate(zip(points,points[1:])):
+        amended.append('  (segment (start %.3f %.3f) (end %.3f %.3f) '
+            '(width 0.34) (layer "F.Cu") (net %d) (tstamp %s))' %
+            (a[0],a[1],b[0],b[1],net,stamp(f"detour:{net}:{i}")))
+    lines[pos:pos+1]=amended
+
+detour("143.000 102.500","124.500 102.500",5,
+       [(143,102.5),(143,101.5),(124.5,101.5),(124.5,102.5)])
+detour("130.500 118.000","136.500 118.000",10,
+       [(130.5,118),(130.5,116.5),(136.5,116.5),(136.5,118)])
+s += 4
+
 assert pcb.rstrip().endswith(")")
 pcb = pcb.rstrip()[:-1] + "\n" + "\n".join(lines) + "\n)\n"
 (outdir / "YK66_RevAT.kicad_pcb").write_text(pcb, encoding="utf-8")
