@@ -1,0 +1,78 @@
+name: YK66 Rev.AT KiCad 10.0.6 Native ERC DRC (NONFAB)
+on:
+  push:
+    branches: [yk66-revat-native-gate]
+    paths:
+      - '.github/workflows/yk66-revat-native.yml'
+      - 'yk66-revat/payload/**'
+      - 'yk66-revat/reconstruct.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: yk66-revat-native-check
+  cancel-in-progress: false
+jobs:
+  kicad-native:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore verified Rev.AT project
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 yk66-revat/reconstruct.py
+          mkdir -p reports
+          sha256sum yk66-revat/YK66_RevAT.kicad_pcb yk66-revat/YK66_RevAT.kicad_sch | tee reports/RECONSTRUCTED_INPUT_SHA256.txt
+      - name: Fetch official KiCad 10.0.6 Docker
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker pull kicad/kicad:10.0.6
+          docker run --rm kicad/kicad:10.0.6 kicad-cli --version | tee reports/KICAD_VERSION.txt
+          grep -Eq '(^|[^0-9])10\.0\.6([^0-9]|$)' reports/KICAD_VERSION.txt
+      - name: Native ERC (record findings)
+        shell: bash
+        run: |
+          set +e
+          docker run --rm --user "$(id -u):$(id -g)" -v "$PWD/yk66-revat:/project" -w /project \
+            kicad/kicad:10.0.6 kicad-cli sch erc --format json --severity-all \
+            -o /project/ERC_NATIVE.json YK66_RevAT.kicad_sch
+          code=$?
+          set -e
+          echo "$code" > reports/ERC_EXIT_CODE.txt
+          test ! -f yk66-revat/ERC_NATIVE.json || cp yk66-revat/ERC_NATIVE.json reports/ERC_NATIVE.json
+          echo "ERC exit code: $code"
+      - name: Native DRC, unconnected, schematic parity (record findings)
+        shell: bash
+        run: |
+          set +e
+          docker run --rm --user "$(id -u):$(id -g)" -v "$PWD/yk66-revat:/project" -w /project \
+            kicad/kicad:10.0.6 kicad-cli pcb drc --format json --severity-all \
+            --schematic-parity --refill-zones \
+            -o /project/DRC_NATIVE.json YK66_RevAT.kicad_pcb
+          code=$?
+          set -e
+          echo "$code" > reports/DRC_EXIT_CODE.txt
+          test ! -f yk66-revat/DRC_NATIVE.json || cp yk66-revat/DRC_NATIVE.json reports/DRC_NATIVE.json
+          echo "DRC exit code: $code"
+      - name: Enforce native results (never infer a pass)
+        shell: bash
+        run: |
+          python3 yk66-revat/evaluate_native_gate.py reports
+      - name: Upload findings and source even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: YK66-RevAT-NATIVE-EVIDENCE-${{ github.run_id }}
+          path: |
+            reports/
+            yk66-revat/YK66_RevAT.kicad_pcb
+            yk66-revat/YK66_RevAT.kicad_sch
+            yk66-revat/YK66.kicad_sym
+            yk66-revat/YK66_RevAT.pretty/
+            yk66-revat/fp-lib-table
+            yk66-revat/sym-lib-table
+          if-no-files-found: warn
+          retention-days: 14
