@@ -21,6 +21,7 @@ jobs:
       - name: Rebuild 2-layer candidate from Rev.AT without original traces
         run: |
           set -euo pipefail
+          python3 yk66-revat/reconstruct.py
           python3 yk66-revav/apply_revav.py | tee REVAV_GENERATE.json
           mkdir -p revav-results
           cp REVAV_GENERATE.json revav-results/
