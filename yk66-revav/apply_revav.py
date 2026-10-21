@@ -100,7 +100,7 @@ assert pcb.rstrip().endswith(")")
 pcb = pcb.rstrip()[:-1] + "\n" + "\n".join(lines) + "\n)\n"
 # Reference text on these three instances had been printed outside allowed zones.
 # Keep the reference on F.Fab for assembly while avoiding misprints on F.SilkS.
-for reference in ("TMOV1", "RB3", "RB4"):
+for reference in ("TMOV1", "RB1", "RB2", "RB3", "RB4"):
     marker = '(fp_text reference "' + reference + '"'
     original = next((line for line in pcb.splitlines() if marker in line), None)
     assert original and '(layer "F.SilkS")' in original, reference
@@ -138,7 +138,7 @@ for name, block in footprint_sections(pcb):
     assert count==1,name
     block = re.sub(r'\(tstamp [0-9a-f-]+\)', "", block)
     block = re.sub(r'\(net \d+ "[^"]*"\)', "", block)
-    block = re.sub(r'\(attr [^)]*\)', "", block, count=1)
+    # Preserve (attr smd)/(attr through_hole) so native library comparison remains accurate.
     block = re.sub(r'\(fp_text reference "[^"]+"', '(fp_text reference "REF**"', block, count=1)
     block = re.sub(r'\(fp_text value "[^"]+"', '(fp_text value "'+name+'"', block, count=1)
     (outdir/"YK66_RevAT.pretty"/(name+".kicad_mod")).write_text(block+"\n",encoding="utf-8")
