@@ -1,0 +1,85 @@
+name: YK66 Rev.AV Native KiCad 10.0.6 Repair Gate (NONFAB)
+on:
+  push:
+    branches:
+      - yk66-revav-short-unconnected-fix
+    paths:
+      - '.github/workflows/yk66-revav-native.yml'
+      - 'yk66-revav/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: yk66-revav-native-gate
+  cancel-in-progress: false
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rebuild 2-layer candidate from Rev.AT without original traces
+        run: |
+          set -euo pipefail
+          python3 yk66-revav/apply_revav.py | tee REVAV_GENERATE.json
+          mkdir -p revav-results
+          cp REVAV_GENERATE.json revav-results/
+      - name: Start official KiCad 10.0.6
+        run: |
+          set -euo pipefail
+          docker pull kicad/kicad:10.0.6
+          docker run --rm kicad/kicad:10.0.6 kicad-cli --version | tee revav-results/KICAD_VERSION.txt
+      - name: Native ERC report
+        run: |
+          set +e
+          docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
+            -e XDG_CONFIG_HOME=/tmp/kicadcfg -e XDG_CACHE_HOME=/tmp/kicadcache \
+            -v "$PWD/yk66-revav/project:/project" -w /project \
+            kicad/kicad:10.0.6 kicad-cli sch erc --format json --severity-all \
+            -o /project/ERC_NATIVE.json YK66_RevAT.kicad_sch
+          code=$?
+          set -e
+          echo "$code" > revav-results/ERC_EXIT_CODE.txt
+          test ! -f yk66-revav/project/ERC_NATIVE.json || cp yk66-revav/project/ERC_NATIVE.json revav-results/ERC_NATIVE.json
+      - name: Native DRC report with unconnected and schematic parity
+        run: |
+          set +e
+          docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
+            -e XDG_CONFIG_HOME=/tmp/kicadcfg -e XDG_CACHE_HOME=/tmp/kicadcache \
+            -v "$PWD/yk66-revav/project:/project" -w /project \
+            kicad/kicad:10.0.6 kicad-cli pcb drc --format json --severity-all \
+            --schematic-parity --refill-zones -o /project/DRC_NATIVE.json \
+            YK66_RevAT.kicad_pcb
+          code=$?
+          set -e
+          echo "$code" > revav-results/DRC_EXIT_CODE.txt
+          test ! -f yk66-revav/project/DRC_NATIVE.json || cp yk66-revav/project/DRC_NATIVE.json revav-results/DRC_NATIVE.json
+      - name: Extract verified counts and enforce ZERO
+        run: |
+          python3 - <<'PY'
+          import json,pathlib,collections
+          d=pathlib.Path("revav-results")
+          erc=json.loads((d/"ERC_NATIVE.json").read_text())
+          drc=json.loads((d/"DRC_NATIVE.json").read_text())
+          active=lambda xs:[x for x in xs if not x.get("excluded",False)]
+          E=sum(len(active(s.get("violations",[]))) for s in erc.get("sheets",[]))
+          V=active(drc.get("violations",[]))
+          U=active(drc.get("unconnected_items",[]))
+          P=active(drc.get("schematic_parity",[]))
+          counts={"ERC":E,"DRC":len(V),"Shorts":sum(x.get("type")=="shorting_items" for x in V),
+                  "Unconnected":len(U),"Parity":len(P),
+                  "DRC_types":dict(collections.Counter(x.get("type") for x in V))}
+          (d/"COUNTS.json").write_text(json.dumps(counts,indent=2))
+          print(json.dumps(counts,indent=2))
+          if any(counts[k] for k in ("ERC","DRC","Unconnected","Parity")):raise SystemExit(1)
+          PY
+      - name: Archive native reports and PCB, even on FAIL
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: YK66-RevAV-DRC-EVIDENCE-${{ github.run_id }}
+          path: |
+            revav-results/
+            yk66-revav/project/
+          retention-days: 14
+          if-no-files-found: warn
