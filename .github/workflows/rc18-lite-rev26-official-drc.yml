@@ -1,0 +1,59 @@
+name: RC18-Lite Rev26 Official KiCad DRC
+on:
+  push:
+    branches:
+      - rc18-lite-rev26-native-drc-20261022
+    paths:
+      - 'rev26_native_drc/**'
+      - '.github/workflows/rc18-lite-rev26-official-drc.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-drc:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install official KiCad 10 CLI
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends software-properties-common
+          sudo add-apt-repository -y ppa:kicad/kicad-10.0-releases
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends kicad
+          kicad-cli version
+      - name: Restore the byte-for-byte Rev26 PCB and verify SHA256
+        run: |
+          python3 - <<'PY'
+          import base64, lzma, hashlib, pathlib
+          src=pathlib.Path('rev26_native_drc/RC18_Lite_Rev26_ROUTED_DRAFT.kicad_pcb.xz.b64')
+          data=lzma.decompress(base64.b64decode(src.read_text().strip()))
+          expected='b98288e381c1ba331ba3f6a676770fbfe0224146bd237ab92e734c8109f81edc'
+          got=hashlib.sha256(data).hexdigest()
+          print('PCB SHA256:', got)
+          if got!=expected: raise SystemExit('Input SHA256 mismatch')
+          pathlib.Path('rev26_native_drc/RC18_Lite_Rev26_ROUTED_DRAFT.kicad_pcb').write_bytes(data)
+          PY
+      - name: Run KiCad official PCB DRC
+        shell: bash
+        run: |
+          set +e
+          kicad-cli pcb drc --format json --severity-all --exit-code-violations \
+            -o rev26_native_drc/RC18_Lite_Rev26_OFFICIAL_DRC.json \
+            rev26_native_drc/RC18_Lite_Rev26_ROUTED_DRAFT.kicad_pcb \
+            2>&1 | tee rev26_native_drc/kicad_drc_console.log
+          result=${PIPESTATUS[0]}
+          echo "KiCad CLI DRC exit code: $result"
+          echo "$result" > rev26_native_drc/kicad_drc_exit_code.txt
+          exit "$result"
+      - name: Upload official DRC evidence even if violations exist
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rc18-lite-rev26-official-kicad-drc
+          path: |
+            rev26_native_drc/*.json
+            rev26_native_drc/*.txt
+            rev26_native_drc/*.log
+          if-no-files-found: warn
