@@ -23,17 +23,22 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends kicad
           kicad-cli version
-      - name: Restore the byte-for-byte Rev26 PCB and verify SHA256
+      - name: Restore corrected PCB plus footprint library and verify SHA256
         run: |
           python3 - <<'PY'
-          import base64, lzma, hashlib, pathlib
-          src=pathlib.Path('rev26_native_drc/RC18_Lite_Rev26_ROUTED_DRAFT.kicad_pcb.xz.b64')
-          data=lzma.decompress(base64.b64decode(src.read_text().strip()))
-          expected='b98288e381c1ba331ba3f6a676770fbfe0224146bd237ab92e734c8109f81edc'
-          got=hashlib.sha256(data).hexdigest()
-          print('PCB SHA256:', got)
+          import base64, lzma, hashlib, pathlib, io, tarfile
+          wd=pathlib.Path('rev26_native_drc')
+          src=wd/'RC18_Lite_Rev26_DRCFIX_bundle.tar.xz.b64'
+          raw=lzma.decompress(base64.b64decode(src.read_text().strip()))
+          with tarfile.open(fileobj=io.BytesIO(raw)) as archive:
+              archive.extractall(wd, filter='data')
+          expected='710af374fd54fdae40df21c435d10b9e4e489b096224a8441e405cb257613bda'
+          p=wd/'RC18_Lite_Rev26_ROUTED_DRAFT.kicad_pcb'
+          got=hashlib.sha256(p.read_bytes()).hexdigest()
+          print('Corrected PCB SHA256:', got)
           if got!=expected: raise SystemExit('Input SHA256 mismatch')
-          pathlib.Path('rev26_native_drc/RC18_Lite_Rev26_ROUTED_DRAFT.kicad_pcb').write_bytes(data)
+          print('Installed custom footprints:',len(list((wd/'RC18_R26.pretty').glob('*.kicad_mod'))))
+          if len(list((wd/'RC18_R26.pretty').glob('*.kicad_mod')))!=12: raise SystemExit('Missing custom footprint files')
           PY
       - name: Run KiCad official PCB DRC
         shell: bash
@@ -51,7 +56,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: rc18-lite-rev26-official-kicad-drc
+          name: rc18-lite-rev26-official-kicad-drc-corrected
           path: |
             rev26_native_drc/*.json
             rev26_native_drc/*.txt
