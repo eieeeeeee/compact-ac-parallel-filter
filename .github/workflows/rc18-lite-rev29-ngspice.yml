@@ -1,0 +1,44 @@
+name: RC18 Lite Rev29 Capacitance Sweep ngspice
+on:
+  push:
+    branches: [rc18-lite-rev29-capacitance-20261023]
+    paths:
+      - 'rev29_spice/**'
+      - '.github/workflows/rc18-lite-rev29-ngspice.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  sweep:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install actual ngspice simulator
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ngspice
+          ngspice --version
+      - name: Generate capacitor sweep circuits
+        run: python3 rev29_spice/generate.py
+      - name: Run 18 small-signal circuits
+        shell: bash
+        run: |
+          cd rev29_spice/decks
+          for net in *.cir; do
+            ngspice -b "$net" > "${net%.cir}.log" 2>&1 || { cat "${net%.cir}.log"; exit 1; }
+            test -s "${net%.cir}.dat" || exit 1
+          done
+      - name: Validate against independent nodal calculation
+        run: python3 rev29_spice/check.py
+      - name: Save SPICE netlists and data
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rc18-lite-rev29-ngspice-capacitance-sweep
+          path: |
+            rev29_spice/decks/*.cir
+            rev29_spice/decks/*.dat
+            rev29_spice/decks/*.log
+            rev29_spice/decks/*.csv
+          if-no-files-found: warn
