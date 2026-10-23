@@ -28,7 +28,7 @@ jobs:
           test -s validation/yk66_rev41_inputs.b64
           mkdir -p validation/input validation/results
           base64 -d validation/yk66_rev41_inputs.b64 | tee validation/input_payload.tar.xz | tar -xJf - -C validation/input
-          echo '432b3f54a2785d2bbd4d2de16c553d7b93d34e500292d9682acf61fc6e6504ec  validation/input_payload.tar.xz' | sha256sum -c -
+          echo '1a1c8653e7dc2a0f31ce5238b16dbc523fadfd42303a57c8533c288670f372cb  validation/input_payload.tar.xz' | sha256sum -c -
           ls -R validation/input
       - name: Correct malformed schematic hide placement in research generator output
         shell: bash
