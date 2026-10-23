@@ -1,9 +1,10 @@
-name: RC18-Lite Rev34 2P Terminal KiCad DRC
+name: RC18-Lite Rev35 2P Terminal KiCad DRC
 on:
   push:
     branches: [rc18-lite-rev34-terminal-2p-20261023]
     paths:
       - 'rev34_terminal/**'
+      - 'rev35_terminal/**'
       - '.github/workflows/rc18-lite-rev34-terminal-native-drc.yml'
   workflow_dispatch:
 permissions:
@@ -35,23 +36,25 @@ jobs:
           python3 rev31_native_drc/convert_rev27_to_direct.py
       - name: Rebuild Rev34 terminal PCB byte-for-byte
         run: python3 rev34_terminal/build_from_verified_rev31.py
+      - name: Fix Rev34 terminal mechanical issue, regenerate Rev35
+        run: python3 rev35_terminal/fix_terminal_courtyard.py
       - name: KiCad official PCB DRC
         shell: bash
         run: |
           set +e
           kicad-cli pcb drc --format json --severity-all --exit-code-violations \
-            -o rev34_terminal/RC18_Lite_Rev34_OFFICIAL_DRC.json \
-            rev34_terminal/RC18_Lite_Rev34_2P_SCREW_1uF_DIRECT.kicad_pcb \
-            2>&1 | tee rev34_terminal/kicad_drc_console.log
+            -o rev35_terminal/RC18_Lite_Rev35_OFFICIAL_DRC.json \
+            rev35_terminal/RC18_Lite_Rev35_2P_SCREW_1uF_DIRECT.kicad_pcb \
+            2>&1 | tee rev35_terminal/kicad_drc_console.log
           ec=${PIPESTATUS[0]}
-          echo "$ec" > rev34_terminal/drc_exit_code.txt
+          echo "$ec" > rev35_terminal/drc_exit_code.txt
           python3 - <<'PY'
           import json,pathlib,collections
-          p=pathlib.Path('rev34_terminal/RC18_Lite_Rev34_OFFICIAL_DRC.json')
+          p=pathlib.Path('rev35_terminal/RC18_Lite_Rev35_OFFICIAL_DRC.json')
           if p.exists():
               d=json.loads(p.read_text())
-              print('Rev34 OFFICIAL violations:',len(d.get('violations',[])))
-              print('Rev34 OFFICIAL unconnected:',len(d.get('unconnected_items',[])))
+              print('Rev35 OFFICIAL violations:',len(d.get('violations',[])))
+              print('Rev35 OFFICIAL unconnected:',len(d.get('unconnected_items',[])))
               print('Violation types:',dict(collections.Counter(x.get('type') for x in d.get('violations',[]))))
               print('Ignored checks:',[x.get('key') for x in d.get('ignored_checks',[])])
           PY
@@ -60,12 +63,12 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: RC18_Lite_Rev34_2P_Terminal_Official_KiCad
+          name: RC18_Lite_Rev35_2P_Terminal_Official_KiCad
           path: |
-            rev34_terminal/*.kicad_pcb
-            rev34_terminal/fp-lib-table
-            rev34_terminal/RC18_R34.pretty/*.kicad_mod
-            rev34_terminal/*.json
-            rev34_terminal/*.log
-            rev34_terminal/*.txt
+            rev35_terminal/*.kicad_pcb
+            rev35_terminal/fp-lib-table
+            rev35_terminal/RC18_R34.pretty/*.kicad_mod
+            rev35_terminal/*.json
+            rev35_terminal/*.log
+            rev35_terminal/*.txt
           if-no-files-found: warn
