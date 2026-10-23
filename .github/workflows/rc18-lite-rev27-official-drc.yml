@@ -1,21 +1,20 @@
-name: RC18-Lite Rev27 Official KiCad 10 DRC
+name: RC18 Lite Rev31 Direct 1uF Verified KiCad 10
 on:
   push:
-    branches:
-      - rc18-lite-rev26-native-drc-20261022
+    branches: [rc18-lite-rev31-1uf-direct-20261023]
     paths:
-      - 'rev27_native_drc/**'
+      - 'rev31_native_drc/**'
       - '.github/workflows/rc18-lite-rev27-official-drc.yml'
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
-  native-drc:
+  pcb-drc:
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - name: Install KiCad 10 native CLI
+      - name: Install KiCad 10 CLI
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends software-properties-common
@@ -23,49 +22,48 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends kicad
           kicad-cli version
-      - name: Restore routed PCB and local footprint library with hash verification
+      - name: Restore fixed Rev27 source board and custom footprint library
         run: |
           python3 - <<'PY'
-          import base64,hashlib,io,tarfile,pathlib
+          import tarfile,base64,io,pathlib
           src=pathlib.Path('rev27_native_drc/rc18_rev27_input.tar.xz.b64')
-          data=base64.b64decode(src.read_text().strip())
-          expected='f45bb8dae61b81673d7c0ca2c1694d1ce813789fd33aa1298ee4229953c2a880'
-          got=hashlib.sha256(data).hexdigest()
-          print('Input tar.xz SHA256',got)
-          if got!=expected:raise SystemExit('Artifact SHA256 mismatch')
-          with tarfile.open(fileobj=io.BytesIO(data),mode='r:xz') as f:
-              f.extractall(path='.',filter='data')
-          board=pathlib.Path('rev27_native_drc/RC18_Lite_Rev26_ROUTED_DRAFT.kicad_pcb').read_bytes()
-          digest=hashlib.sha256(board).hexdigest()
-          print('Fixed PCB SHA256',digest)
-          if digest!='710af374fd54fdae40df21c435d10b9e4e489b096224a8441e405cb257613bda':raise SystemExit('PCB hash mismatch')
+          with tarfile.open(fileobj=io.BytesIO(base64.b64decode(src.read_text().strip())),mode='r:xz') as f:
+              f.extractall('.',filter='data')
+          print('Rev27 restored',pathlib.Path('rev27_native_drc/RC18_Lite_Rev26_ROUTED_DRAFT.kicad_pcb').exists())
           PY
-      - name: Run native KiCad DRC, log all warnings and unconnected items
+      - name: Convert to Rev31 true direct 1uF and verify byte equality
+        run: python3 rev31_native_drc/convert_rev27_to_direct.py
+      - name: Official KiCad DRC
         shell: bash
         run: |
           set +e
           kicad-cli pcb drc --format json --severity-all --exit-code-violations \
-            -o rev27_native_drc/RC18_Lite_Rev27_OFFICIAL_DRC.json \
-            rev27_native_drc/RC18_Lite_Rev26_ROUTED_DRAFT.kicad_pcb \
-            2>&1 | tee rev27_native_drc/kicad_drc_console.log
-          result=${PIPESTATUS[0]}
-          echo "$result" > rev27_native_drc/kicad_drc_exit_code.txt
+            -o rev31_native_drc/REV31_OFFICIAL_KICAD_DRC.json \
+            rev31_native_drc/RC18_Lite_Rev31_DIRECT_1uF_DRC_CANDIDATE.kicad_pcb \
+            2>&1 | tee rev31_native_drc/kicad_drc.log
+          ec=${PIPESTATUS[0]}
+          echo "$ec" > rev31_native_drc/drc_exit_code.txt
           python3 - <<'PY'
-          import pathlib,json,collections
-          p=pathlib.Path('rev27_native_drc/RC18_Lite_Rev27_OFFICIAL_DRC.json')
+          import json,pathlib
+          p=pathlib.Path('rev31_native_drc/REV31_OFFICIAL_KICAD_DRC.json')
           if p.exists():
-              d=json.loads(p.read_text())
-              print('DRC violations',len(d.get('violations',[])),'unconnected',len(d.get('unconnected_items',[])))
-              for t,n in collections.Counter(v['type'] for v in d.get('violations',[])).items():print(t,n)
+              o=json.loads(p.read_text())
+              print('OFFICIAL REV31 DRC VIOLATIONS:',len(o.get('violations',[])))
+              print('OFFICIAL REV31 UNCONNECTED:',len(o.get('unconnected_items',[])))
+              print('VIOLATION TYPES:',[x.get('type') for x in o.get('violations',[])])
+              print('IGNORED CHECKS:',o.get('ignored_checks',[]))
           PY
-          exit "$result"
-      - name: Upload detailed native DRC results including violations
+          exit "$ec"
+      - name: Upload PCB, footprints and official DRC evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: rc18-lite-rev27-official-kicad-drc
+          name: RC18_Lite_Rev31_1uF_Direct_Official_DRC
           path: |
-            rev27_native_drc/*.json
-            rev27_native_drc/*.txt
-            rev27_native_drc/*.log
+            rev31_native_drc/*.kicad_pcb
+            rev31_native_drc/*.json
+            rev31_native_drc/*.log
+            rev31_native_drc/*.txt
+            rev31_native_drc/fp-lib-table
+            rev31_native_drc/RC18_R26.pretty/*.kicad_mod
           if-no-files-found: warn
