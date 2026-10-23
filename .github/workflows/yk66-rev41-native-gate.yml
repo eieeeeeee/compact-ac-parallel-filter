@@ -1,0 +1,58 @@
+name: YK66 Rev41 KiCad Native Gate
+on:
+  push:
+    branches:
+      - research/yk66-rev41-kicad-gate-20261023
+    paths:
+      - .github/workflows/yk66-rev41-native-gate.yml
+      - validation/yk66_rev41_inputs.b64
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-kicad:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install KiCad 10
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y software-properties-common
+          sudo add-apt-repository -y ppa:kicad/kicad-10.0-releases
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends kicad kicad-symbols kicad-footprints
+          kicad-cli version
+      - name: Restore exact Rev41 input
+        run: |
+          test -s validation/yk66_rev41_inputs.b64
+          mkdir -p validation/input validation/results
+          base64 -d validation/yk66_rev41_inputs.b64 | tar -xJf - -C validation/input
+          ls -R validation/input
+      - name: Native ERC
+        shell: bash
+        run: |
+          set +e
+          kicad-cli sch erc -o validation/results/erc.txt validation/input/YK66_Rev41_RESEARCH_ONLY.kicad_sch
+          echo $? > validation/results/erc_exit.txt
+          cat validation/results/erc.txt
+          exit 0
+      - name: Native DRC
+        shell: bash
+        run: |
+          set +e
+          kicad-cli pcb drc --all-track-errors -o validation/results/drc.txt validation/input/YK66_Rev41_RESEARCH_ONLY.kicad_pcb
+          echo $? > validation/results/drc_exit.txt
+          cat validation/results/drc.txt
+          exit 0
+      - name: Export netlist
+        shell: bash
+        run: |
+          kicad-cli sch export netlist --output validation/results/netlist.net validation/input/YK66_Rev41_RESEARCH_ONLY.kicad_sch || true
+      - name: Preserve official reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: yk66-rev41-native-gate
+          path: validation/results/
+          retention-days: 30
