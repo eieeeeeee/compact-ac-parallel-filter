@@ -38,7 +38,7 @@ jobs:
           import re
           p=Path('validation/input/YK66_Rev41_RESEARCH_ONLY.kicad_sch')
           s=p.read_text()
-          fixed,n=re.subn(r'(\(effects \(font \(size [^)]+\)\))\) hide\)',r'\1 hide)',s)
+          fixed,n=re.subn(r'(\(effects \(font \(size [^)]+\)\))\) hide\)',r'\1 hide))',s)
           print('malformed hide fields corrected:',n)
           if n!=34: raise SystemExit('Unexpected source content')
           fixed,notes=re.subn(r'\(text "(.*?)"',lambda m:'(text "'+m.group(1).replace('\n',r'\n')+'"',fixed,flags=re.S)
