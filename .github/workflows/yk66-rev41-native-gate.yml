@@ -27,8 +27,22 @@ jobs:
         run: |
           test -s validation/yk66_rev41_inputs.b64
           mkdir -p validation/input validation/results
-          base64 -d validation/yk66_rev41_inputs.b64 | tar -xJf - -C validation/input
+          base64 -d validation/yk66_rev41_inputs.b64 | tee validation/input_payload.tar.xz | tar -xJf - -C validation/input
+          echo '432b3f54a2785d2bbd4d2de16c553d7b93d34e500292d9682acf61fc6e6504ec  validation/input_payload.tar.xz' | sha256sum -c -
           ls -R validation/input
+      - name: Correct malformed schematic hide placement in research generator output
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('validation/input/YK66_Rev41_RESEARCH_ONLY.kicad_sch')
+          s=p.read_text()
+          fixed,n=re.subn(r'(\(effects \(font \(size [^)]+\)\))\) hide\)',r'\1 hide)',s)
+          print('malformed hide fields corrected:',n)
+          if n!=34: raise SystemExit('Unexpected source content')
+          p.write_text(fixed)
+          PY
       - name: Native ERC
         shell: bash
         run: |
