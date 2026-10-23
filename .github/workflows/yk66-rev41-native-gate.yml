@@ -57,8 +57,9 @@ jobs:
           names=['AC_A','FUSED','C_HOT','N','BLEED_M1','BLEED_M2','LED_R1MID','LED_A']
           counts={}
           for name in names:
-              pat=r'(\\(net\\s+\\d+\\s+")'+name+r'("\\))'
-              data,n=re.subn(pat,lambda m:m.group(1)+'/'+name+m.group(2),data)
+              pat=f'"{name}"'
+              n=data.count(pat)
+              data=data.replace(pat,f'"/{name}"')
               counts[name]=n
               if n<2: raise SystemExit(f'Unexpected net mapping: {name} {n}')
           p.write_text(data)
