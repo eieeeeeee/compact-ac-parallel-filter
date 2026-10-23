@@ -1,0 +1,71 @@
+name: RC18-Lite Rev34 2P Terminal KiCad DRC
+on:
+  push:
+    branches: [rc18-lite-rev34-terminal-2p-20261023]
+    paths:
+      - 'rev34_terminal/**'
+      - '.github/workflows/rc18-lite-rev34-terminal-native-drc.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  drc:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install KiCad official command line tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends software-properties-common
+          sudo add-apt-repository -y ppa:kicad/kicad-10.0-releases
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends kicad
+          kicad-cli version
+      - name: Restore verified Rev27 source and build Rev31
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64,io,tarfile,hashlib
+          blob=Path('rev27_native_drc/rc18_rev27_input.tar.xz.b64')
+          data=base64.b64decode(blob.read_text().strip())
+          assert hashlib.sha256(data).hexdigest()=='f45bb8dae61b81673d7c0ca2c1694d1ce813789fd33aa1298ee4229953c2a880'
+          with tarfile.open(fileobj=io.BytesIO(data),mode='r:xz') as t:t.extractall('.',filter='data')
+          PY
+          python3 rev31_native_drc/convert_rev27_to_direct.py
+      - name: Rebuild Rev34 terminal PCB byte-for-byte
+        run: python3 rev34_terminal/build_from_verified_rev31.py
+      - name: KiCad official PCB DRC
+        shell: bash
+        run: |
+          set +e
+          kicad-cli pcb drc --format json --severity-all --exit-code-violations \
+            -o rev34_terminal/RC18_Lite_Rev34_OFFICIAL_DRC.json \
+            rev34_terminal/RC18_Lite_Rev34_2P_SCREW_1uF_DIRECT.kicad_pcb \
+            2>&1 | tee rev34_terminal/kicad_drc_console.log
+          ec=${PIPESTATUS[0]}
+          echo "$ec" > rev34_terminal/drc_exit_code.txt
+          python3 - <<'PY'
+          import json,pathlib,collections
+          p=pathlib.Path('rev34_terminal/RC18_Lite_Rev34_OFFICIAL_DRC.json')
+          if p.exists():
+              d=json.loads(p.read_text())
+              print('Rev34 OFFICIAL violations:',len(d.get('violations',[])))
+              print('Rev34 OFFICIAL unconnected:',len(d.get('unconnected_items',[])))
+              print('Violation types:',dict(collections.Counter(x.get('type') for x in d.get('violations',[]))))
+              print('Ignored checks:',[x.get('key') for x in d.get('ignored_checks',[])])
+          PY
+          exit "$ec"
+      - name: Upload editable board and native evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RC18_Lite_Rev34_2P_Terminal_Official_KiCad
+          path: |
+            rev34_terminal/*.kicad_pcb
+            rev34_terminal/fp-lib-table
+            rev34_terminal/RC18_R34.pretty/*.kicad_mod
+            rev34_terminal/*.json
+            rev34_terminal/*.log
+            rev34_terminal/*.txt
+          if-no-files-found: warn
