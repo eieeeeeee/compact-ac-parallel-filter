@@ -41,6 +41,9 @@ jobs:
           fixed,n=re.subn(r'(\(effects \(font \(size [^)]+\)\))\) hide\)',r'\1 hide)',s)
           print('malformed hide fields corrected:',n)
           if n!=34: raise SystemExit('Unexpected source content')
+          fixed,notes=re.subn(r'\(text "(.*?)"',lambda m:'(text "'+m.group(1).replace('\n',r'\n')+'"',fixed,flags=re.S)
+          print('multiline schematic note escaped:',notes)
+          if notes!=1: raise SystemExit('Unexpected schematic note')
           p.write_text(fixed)
           PY
       - name: Native ERC
