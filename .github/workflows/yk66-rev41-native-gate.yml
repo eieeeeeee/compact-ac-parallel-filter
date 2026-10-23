@@ -66,10 +66,41 @@ jobs:
         shell: bash
         run: |
           kicad-cli sch export netlist --output validation/results/netlist.net validation/input/YK66_Rev41_RESEARCH_ONLY.kicad_sch || true
+      - name: Native schematic-to-PCB parity
+        shell: bash
+        run: |
+          set +e
+          kicad-cli pcb drc --schematic-parity --severity-all --all-track-errors -o validation/results/parity.txt validation/input/YK66_Rev41_RESEARCH_ONLY.kicad_pcb
+          echo $? > validation/results/parity_exit.txt
+          cat validation/results/parity.txt
+          exit 0
       - name: Preserve official reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: yk66-rev41-native-gate
-          path: validation/results/
+          path: |
+            validation/results/
+            validation/input/YK66_Rev41_RESEARCH_ONLY.kicad_sch
+            validation/input/YK66_Rev41_RESEARCH_ONLY.kicad_pcb
           retention-days: 30
+      - name: Strict verification gate
+        if: always()
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('validation/results')
+          erc=(p/'erc.txt').read_text() if (p/'erc.txt').exists() else ''
+          drc=(p/'drc.txt').read_text() if (p/'drc.txt').exists() else ''
+          parity=(p/'parity.txt').read_text() if (p/'parity.txt').exists() else ''
+          def extract(pattern,s): 
+              m=re.search(pattern,s)
+              return int(m.group(1)) if m else -1
+          ec=extract(r'ERC messages: (\d+)',erc)
+          dc=extract(r'Found (\d+) DRC violations',drc)
+          pc=extract(r'Found (\d+) DRC violations',parity)
+          print('STRICT GATE: ERC issues=',ec,'DRC issues=',dc,'parity DRC issues=',pc)
+          if ec!=0 or dc!=0 or pc!=0: raise SystemExit('RESEARCH HOLD: not 0/0/0')
+          PY
