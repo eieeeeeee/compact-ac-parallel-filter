@@ -1,0 +1,46 @@
+name: RC18 Lite Rev28 Real ngspice Network Simulation
+on:
+  push:
+    branches: [rc18-lite-rev28-spice-20261023]
+    paths:
+      - 'rev28_spice/**'
+      - '.github/workflows/rc18-lite-rev28-ngspice.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ngspice-network-simulation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install ngspice circuit simulator
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ngspice
+          ngspice --version
+      - name: Generate nine SPICE netlists
+        run: python3 rev28_spice/generate_ngspice_decks.py
+      - name: Perform AC analyses via real ngspice
+        shell: bash
+        run: |
+          cd rev28_spice/ngspice_decks
+          for net in *.cir; do
+            echo "SIMULATING $net"
+            ngspice -b "$net" > "${net%.cir}.log" 2>&1 || { cat "${net%.cir}.log"; exit 1; }
+            if ! test -s "${net%.cir}.dat"; then echo "Missing output for $net"; cat "${net%.cir}.log"; exit 1; fi
+          done
+          echo "All nine ngspice runs produced output"
+      - name: Compare SPICE against independent Python nodal analysis
+        run: python3 rev28_spice/verify_ngspice_data.py
+      - name: Upload SPICE simulation data
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rc18-lite-rev28-real-ngspice-simulation
+          path: |
+            rev28_spice/ngspice_decks/*.cir
+            rev28_spice/ngspice_decks/*.dat
+            rev28_spice/ngspice_decks/*.log
+            rev28_spice/ngspice_decks/*.csv
+          if-no-files-found: warn
