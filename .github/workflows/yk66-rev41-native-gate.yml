@@ -46,6 +46,24 @@ jobs:
           if notes!=1: raise SystemExit('Unexpected schematic note')
           p.write_text(fixed)
           PY
+      - name: Match PCB net names to hierarchical schematic net names
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('validation/input/YK66_Rev41_RESEARCH_ONLY.kicad_pcb')
+          data=p.read_text()
+          names=['AC_A','FUSED','C_HOT','N','BLEED_M1','BLEED_M2','LED_R1MID','LED_A']
+          counts={}
+          for name in names:
+              pat=r'(\\(net\\s+\\d+\\s+")'+name+r'("\\))'
+              data,n=re.subn(pat,lambda m:m.group(1)+'/'+name+m.group(2),data)
+              counts[name]=n
+              if n<2: raise SystemExit(f'Unexpected net mapping: {name} {n}')
+          p.write_text(data)
+          print('PCB net hierarchy normalization:',counts)
+          PY
       - name: Native ERC
         shell: bash
         run: |
