@@ -111,7 +111,9 @@ jobs:
           s,n=re.subn(r'\(text "(.*?)"',lambda m:'(text "'+m.group(1).replace('\n',r'\n')+'"',s,flags=re.S)
           print('Source multiline schematic annotation correction:',n)
           assert n==1,n
-          s=s.replace('PLUG_INTERFACE_PROVISIONAL','PHOENIX_1711725_2P_5p08')
+          s=s.replace('PLUG_INTERFACE_PROVISIONAL','PHOENIX_1711725')
+          s=s.replace('YK66:J_2Pads_5p5','YK66:Phoenix_1711725_MKDS3_2_5p08_PRELIM')
+          s=s.replace('YK66:TCO_Axial_17p5','YK66:TCO_Axial_22p0')
           p.write_text(s)
           PY
       - name: Official native schematic ERC
