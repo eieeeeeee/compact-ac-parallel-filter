@@ -97,6 +97,39 @@ jobs:
           echo $? > verify/results/drc_exit.txt
           cat verify/results/rev45_drc.txt
           exit 0
+      - name: Correct source schematic fields (research only)
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('verify/src/YK66_Rev41_RESEARCH_ONLY.kicad_sch')
+          s=p.read_text()
+          s,n=re.subn(r'(\(effects \(font \(size [^)]+\)\))\) hide\)',r'\1 hide))',s)
+          print('Source malformed field corrections:',n)
+          assert n==34,n
+          s,n=re.subn(r'\(text "(.*?)"',lambda m:'(text "'+m.group(1).replace('\n',r'\n')+'"',s,flags=re.S)
+          print('Source multiline schematic annotation correction:',n)
+          assert n==1,n
+          s=s.replace('PLUG_INTERFACE_PROVISIONAL','PHOENIX_1711725_2P_5p08')
+          p.write_text(s)
+          PY
+      - name: Official native schematic ERC
+        shell: bash
+        run: |
+          set +e
+          kicad-cli sch erc -o verify/results/rev45_erc.txt verify/src/YK66_Rev41_RESEARCH_ONLY.kicad_sch
+          echo $? > verify/results/erc_exit.txt
+          cat verify/results/rev45_erc.txt
+          exit 0
+      - name: Official native schematic-to-PCB parity
+        shell: bash
+        run: |
+          set +e
+          kicad-cli pcb drc --schematic-parity --severity-all --all-track-errors -o verify/results/rev45_parity.txt verify/src/YK66_Rev41_RESEARCH_ONLY.kicad_pcb
+          echo $? > verify/results/parity_exit.txt
+          cat verify/results/rev45_parity.txt
+          exit 0
       - name: Preserve native reports and source
         if: always()
         uses: actions/upload-artifact@v4
@@ -104,6 +137,7 @@ jobs:
           name: YK66-Rev45-Routed-ResearchOnly-KiCad10-DRC
           path: |
             verify/src/YK66_Rev41_RESEARCH_ONLY.kicad_pcb
+            verify/src/YK66_Rev41_RESEARCH_ONLY.kicad_sch
             verify/results/
           retention-days: 30
       - name: Mandatory unreleased safety hold
