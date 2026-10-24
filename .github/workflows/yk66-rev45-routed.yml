@@ -1,4 +1,4 @@
-name: YK66 Rev45S Footprint Source Integrity Gate
+name: YK66 Rev45S Corrected Footprint Integrity Gate
 on:
   push:
     branches: [research/yk66-rev45s-j1-1711725-20261024]
