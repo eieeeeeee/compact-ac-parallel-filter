@@ -1,4 +1,4 @@
-name: YK66 Rev45S Corrected Footprint Integrity Gate
+name: YK66 Rev45S 3.5mm Rule Negative Control
 on:
   push:
     branches: [research/yk66-rev45s-j1-1711725-20261024]
@@ -229,6 +229,19 @@ jobs:
           echo $? > verify/results/strict_drc_exit.txt
           head -70 verify/results/rev45_3mm_screening_DRC.txt
           exit 0
+      - name: Verify custom clearance rules are actually enforced (3.5mm negative control)
+        shell: bash
+        run: |
+          set -e
+          cp verify/src/YK66_Rev41_RESEARCH_ONLY.kicad_dru verify/src/rules_3mm_saved.bak
+          sed -i 's/(min 3mm)/(min 3.5mm)/g' verify/src/YK66_Rev41_RESEARCH_ONLY.kicad_dru
+          set +e
+          kicad-cli pcb drc --severity-all --all-track-errors -o verify/results/experimental_3p5mm_negative_control.txt verify/src/YK66_Rev41_RESEARCH_ONLY.kicad_pcb
+          echo $? > verify/results/negative_control_exit.txt
+          set -e
+          cat verify/results/experimental_3p5mm_negative_control.txt | head -35
+          mv verify/src/rules_3mm_saved.bak verify/src/YK66_Rev41_RESEARCH_ONLY.kicad_dru
+          echo 'Interpretation: if no electrical clearance errors despite known 3.2mm features, project-specific rules may not have been loaded. Do NOT claim IEC approval.'
       - name: Export official KiCad preliminary manufacturing plots
         shell: bash
         run: |
