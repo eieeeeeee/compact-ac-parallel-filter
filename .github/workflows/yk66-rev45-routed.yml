@@ -1,7 +1,7 @@
-name: YK66 Rev45T J1 Tolerance Candidate Gate
+name: YK66 Rev45U Standard PCB Fabrication Gate
 on:
   push:
-    branches: [research/yk66-rev45t-j1-tolerance-20261024]
+    branches: [research/yk66-rev45u-standard-fab-20261024]
     paths: [.github/workflows/yk66-rev45-routed.yml]
 permissions:
   contents: read
@@ -167,6 +167,10 @@ jobs:
         shell: bash
         run: |
           python3 validation/yk66_rev45t_J1_1p40_2p08_CANDIDATE.py
+      - name: Apply Phoenix 1711725 standard PTH 1.30mm and oval 2.50x1.90mm
+        shell: bash
+        run: |
+          python3 validation/yk66_rev45u_standard_fab_j1.py
       - name: Synchronize full KiCad 10 footprint library to board geometry
         shell: bash
         run: |
