@@ -180,11 +180,7 @@ jobs:
           RULE
           printf '{}\n' > verify/src/YK66_Rev41_RESEARCH_ONLY.kicad_pro
           set +e
-          kicad-cli pcb drc --severity-all --all-track-errors \\
-            -o verify/results/rev45_3mm_screening_DRC.txt \\
-            verify/src/YK66_Rev41_RESEARCH_ONLY.kicad_pcb
-            verify/src/YK66_Rev41_RESEARCH_ONLY.kicad_dru
-            verify/src/YK66_Rev41_RESEARCH_ONLY.kicad_pro
+          kicad-cli pcb drc --severity-all --all-track-errors -o verify/results/rev45_3mm_screening_DRC.txt verify/src/YK66_Rev41_RESEARCH_ONLY.kicad_pcb
           echo $? > verify/results/strict_drc_exit.txt
           head -70 verify/results/rev45_3mm_screening_DRC.txt
           exit 0
