@@ -1,0 +1,84 @@
+name: YK66 Rev42 50x32 corrected footprint research DRC
+on:
+  push:
+    branches: [research/yk66-50x32-placement-20261024]
+    paths: [.github/workflows/yk66-rev42-geometry-drc.yml]
+permissions:
+  contents: read
+jobs:
+  native-check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install official KiCad 10
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y software-properties-common
+          sudo add-apt-repository -y ppa:kicad/kicad-10.0-releases
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends kicad kicad-symbols kicad-footprints
+          kicad-cli version
+      - name: Restore Rev41 source archive
+        run: |
+          mkdir -p verify/src verify/results
+          base64 -d validation/yk66_rev41_inputs.b64 | tar -xJf - -C verify/src
+      - name: Build Rev42 research geometry candidate (NOT ROUTED)
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re, math
+          p=Path('verify/src/YK66_Rev41_RESEARCH_ONLY.kicad_pcb')
+          s=p.read_text()
+          for name in ['AC_A','FUSED','C_HOT','N','BLEED_M1','BLEED_M2','LED_R1MID','LED_A']:
+              s=s.replace('"'+name+'"','"/'+name+'"')
+          s=s.replace('(gr_rect (start 0 0) (end 52 42)','(gr_rect (start 0 0) (end 50 32)')
+          s=s.replace('YK66 REV41 NOT FOR MAINS / NOT FOR FAB','YK66 Rev42 50x32 HOLD / NO MAINS')
+          mapping={
+            'J1':(44,19),'F1':(31,27.65),'TCO1':(11.4,15.5),
+            'C1':(28,7.5),'MOV1':(26,18.75),
+            'RB1':(24,6),'RB2':(33,6),'RB3':(24,14),'RB4':(33,14),
+            'RL1':(6,9),'RL2':(6,15),'LED1':(5.7,19),'D1':(5.7,23)
+          }
+          for ref,(x,y) in mapping.items():
+              pattern=r'(\(footprint "[^"]+" \(layer "[^"]+"\) \(uuid [^\)]+\) \(at )([\d.]+) ([\d.]+)( 0\)\n\(property "Reference" "'+ref+r'"\s+)'
+              s,n=re.subn(pattern,lambda m:m.group(1)+str(x)+' '+str(y)+m.group(4),s)
+              assert n==1,(ref,n)
+          s,n=re.subn(r'\(segment\s+\(start\s+[^\n]*\n','',s)
+          assert n==40,n
+          st=s.index('(footprint "YK66:TCO_Axial_17p5"')
+          en=s.index('\n(footprint ',st+1)
+          block=s[st:en]
+          assert block.count('8.750')==2
+          block=block.replace('8.750','11.000')
+          assert block.count('(drill 0.900)')==2
+          block=block.replace('(drill 0.900)','(drill 1.250)')
+          s=s[:st]+block+s[en:]
+          s=s.replace('YK66:TCO_Axial_17p5','YK66:TCO_Axial_22p0')
+          p.write_text(s)
+          old_gap=math.dist((11.4,26.5),(13,27.65))-(2.15+2.4)/2
+          new_gap=math.dist((11.4,26.5),(16,27.65))-(2.15+2.4)/2
+          print('geometry gate old pad signed gap=',round(old_gap,3),'new=',round(new_gap,3))
+          assert new_gap>2.4
+          PY
+      - name: Run native DRC on UNROUTED candidate
+        run: |
+          set +e
+          kicad-cli pcb drc --severity-all --all-track-errors -o verify/results/rev42_drc.txt verify/src/YK66_Rev41_RESEARCH_ONLY.kicad_pcb
+          echo $? > verify/results/rev42_drc_exit.txt
+          cat verify/results/rev42_drc.txt
+          exit 0
+      - name: Save research results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: yk66-rev42-50x32-research-geometry-unrouted
+          path: |
+            verify/results/
+            verify/src/YK66_Rev41_RESEARCH_ONLY.kicad_pcb
+          retention-days: 30
+      - name: Reject fabrication or energization
+        if: always()
+        run: |
+          echo 'RESEARCH HOLD. No fully routed design, no electrical clearance approvals or PSE release.'
+          exit 1
