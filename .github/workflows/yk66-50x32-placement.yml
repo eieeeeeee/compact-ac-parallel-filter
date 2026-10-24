@@ -1,0 +1,83 @@
+name: YK66 50x32 native placement DRC research HOLD
+on:
+  push:
+    branches: [research/yk66-50x32-placement-20261024]
+    paths: ['.github/workflows/yk66-50x32-placement.yml']
+permissions:
+  contents: read
+jobs:
+  placement-check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install official KiCad 10 CLI
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y software-properties-common
+          sudo add-apt-repository -y ppa:kicad/kicad-10.0-releases
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends kicad kicad-symbols kicad-footprints
+          kicad-cli version
+      - name: Decode historical Rev41 source
+        run: |
+          mkdir -p verify/src verify/results
+          base64 -d validation/yk66_rev41_inputs.b64 | tar -xJf - -C verify/src
+      - name: Build 50x32mm PLACEMENT-ONLY derivative
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('verify/src/YK66_Rev41_RESEARCH_ONLY.kicad_pcb')
+          s=p.read_text()
+          for name in ['AC_A','FUSED','C_HOT','N','BLEED_M1','BLEED_M2','LED_R1MID','LED_A']:
+              s=s.replace('"'+name+'"','"/'+name+'"')
+          s=s.replace('(gr_rect (start 0 0) (end 52 42)','(gr_rect (start 0 0) (end 50 32)')
+          s=s.replace('(at 26 1.3) (layer "F.SilkS")','(at 25 1) (layer "F.SilkS")')
+          s=s.replace('YK66 REV41 NOT FOR MAINS / NOT FOR FAB','YK66 50x32 PLACEMENT ONLY / HOLD')
+          xy={
+            'J1':(44.0,19.0),'F1':(28.0,27.65),'TCO1':(10.3,16.0),
+            'C1':(28.0,7.5),'MOV1':(26.0,18.75),
+            'RB1':(24.0,6.0),'RB2':(33.0,6.0),'RB3':(24.0,14.0),
+            'RB4':(33.0,14.0),'RL1':(6.0,9.0),'RL2':(6.0,15.0),
+            'LED1':(5.7,19.0),'D1':(5.7,23.0)
+          }
+          for ref,(x,y) in xy.items():
+              pattern=r'(\(footprint "[^"]+" \(layer "[^"]+"\) \(uuid [^\)]+\) \(at )([\d.]+) ([\d.]+)( 0\)\n\(property "Reference" "'+ref+r'"\s+)'
+              s,n=re.subn(pattern,lambda m:m.group(1)+str(x)+' '+str(y)+m.group(4),s)
+              assert n==1,(ref,n)
+          s,n=re.subn(r'\(segment\s+\(start\s+[^\n]*\n','',s)
+          assert n==40,n
+          start=s.index('(footprint "YK66:TCO_Axial_17p5"')
+          end=s.index('\n(footprint ',start+1)
+          block=s[start:end]
+          assert block.count('8.750')==2
+          block=block.replace('8.750','11.000')
+          s=(s[:start]+block+s[end:]).replace('YK66:TCO_Axial_17p5','YK66:TCO_Axial_22p0')
+          p.write_text(s)
+          print('50x32 placement candidate; removed copper segments=',n,'footprints=',len(xy))
+          PY
+      - name: KiCad official PCB DRC including unrouted pad assessment
+        shell: bash
+        run: |
+          set +e
+          kicad-cli pcb drc --severity-all --all-track-errors \
+            -o verify/results/placement_drc.txt verify/src/YK66_Rev41_RESEARCH_ONLY.kicad_pcb
+          echo $? > verify/results/drc_exit.txt
+          cat verify/results/placement_drc.txt
+          exit 0
+      - name: Preserve reports and candidate board
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: yk66-50x32-unrouted-placement-RESEARCH-HOLD
+          path: |
+            verify/results/
+            verify/src/YK66_Rev41_RESEARCH_ONLY.kicad_pcb
+          retention-days: 30
+      - name: Gate stays HOLD until board fully routed and safety reviewed
+        if: always()
+        run: |
+          echo 'RESEARCH HOLD: placement-only, deliberately unrouted; NOT fabricable or AC100V-safe.'
+          exit 1
