@@ -33,6 +33,11 @@ jobs:
           s=p.read_text()
           for name in ['AC_A','FUSED','C_HOT','N','BLEED_M1','BLEED_M2','LED_R1MID','LED_A']:
               s=s.replace('"'+name+'"','"/'+name+'"')
+          # Rev41 archive omitted soldermask/paste from PCB layer table; the first
+          # export lacked F.Mask/B.Mask. Explicitly restore standard KiCad layers.
+          s=s.replace('(36 "B.SilkS" user) (37 "F.SilkS" user) (44 "Edge.Cuts" user)',
+                      '(34 "B.Paste" user) (35 "F.Paste" user) (36 "B.SilkS" user) (37 "F.SilkS" user) (38 "B.Mask" user) (39 "F.Mask" user) (44 "Edge.Cuts" user)')
+          assert '(38 "B.Mask" user) (39 "F.Mask" user)' in s
           s=s.replace('(gr_rect (start 0 0) (end 52 42)','(gr_rect (start 0 0) (end 50 32)')
           s=s.replace('YK66 REV41 NOT FOR MAINS / NOT FOR FAB','YK66 Rev45 ROUTED RESEARCH HOLD / NO MAINS')
           # Preserve reference identifiers and pad net assignments.
