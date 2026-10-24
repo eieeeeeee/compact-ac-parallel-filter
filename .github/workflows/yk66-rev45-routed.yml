@@ -127,6 +127,7 @@ jobs:
         run: |
           base64 -d validation/yk66_rev45_project_libraries.tar.gz.b64 | tar -xzf - -C verify/src
           python3 validation/yk66_rev45_warning_cleanup.py
+          printf '{}\n' > verify/src/YK66_Rev41_RESEARCH_ONLY.kicad_pro
           test -s verify/src/fp-lib-table
           test -s verify/src/sym-lib-table
           ls verify/src/YK66.pretty/*.kicad_mod | wc -l
