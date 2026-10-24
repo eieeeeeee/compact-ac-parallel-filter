@@ -132,6 +132,19 @@ jobs:
           echo $? > verify/results/parity_exit.txt
           cat verify/results/rev45_parity.txt
           exit 0
+      - name: Export official KiCad preliminary manufacturing plots
+        shell: bash
+        run: |
+          set -e
+          mkdir -p verify/manufacturing
+          PCB=verify/src/YK66_Rev41_RESEARCH_ONLY.kicad_pcb
+          kicad-cli pcb export gerbers --output verify/manufacturing/ \
+            --layers F.Cu,B.Cu,F.Mask,B.Mask,F.Silkscreen,B.Silkscreen,Edge.Cuts "$PCB"
+          kicad-cli pcb export drill --output verify/manufacturing/ \
+            --format excellon --excellon-units mm "$PCB"
+          kicad-cli pcb export pos --side both --format csv --units mm \
+            --output verify/manufacturing/Rev45_placements.csv "$PCB"
+          ls -al verify/manufacturing
       - name: Preserve native reports and source
         if: always()
         uses: actions/upload-artifact@v4
@@ -141,6 +154,7 @@ jobs:
             verify/src/YK66_Rev41_RESEARCH_ONLY.kicad_pcb
             verify/src/YK66_Rev41_RESEARCH_ONLY.kicad_sch
             verify/results/
+            verify/manufacturing/
           retention-days: 30
       - name: Mandatory unreleased safety hold
         if: always()
