@@ -1,7 +1,7 @@
-name: YK66 Rev45 50x32 Corrected-Symbols Native DRC
+name: YK66 Rev45S J1 1711725 Mechanical Gate
 on:
   push:
-    branches: [research/yk66-rev45-clearance-gate-20261024]
+    branches: [research/yk66-rev45s-j1-1711725-20261024]
     paths: [.github/workflows/yk66-rev45-routed.yml]
 permissions:
   contents: read
@@ -131,6 +131,38 @@ jobs:
           test -s verify/src/fp-lib-table
           test -s verify/src/sym-lib-table
           ls verify/src/YK66.pretty/*.kicad_mod | wc -l
+      - name: Set final J1 manufacturer-specific research geometry
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('verify/src/YK66_Rev41_RESEARCH_ONLY.kicad_pcb')
+          s=p.read_text()
+          st=s.index('(footprint "YK66:Phoenix_1711725_MKDS3_2_5p08_PRELIM"')
+          en=s.index('\n(footprint ',st+1)
+          f=s[st:en]
+          assert '(at 44 18.6 0)' in f
+          f=f.replace('(at 44 18.6 0)','(at 42.4 18.6 0)')
+          assert f.count('(start -5.6 -5.08) (end 5.6 5.08)')==2
+          f=f.replace('(start -5.6 -5.08) (end 5.6 5.08)','(start -5.9 -5.08) (end 5.3 5.08)')
+          assert f.count('thru_hole circle')==2 and f.count('(size 2.05 2.05)')==2
+          f=f.replace('thru_hole circle','thru_hole oval').replace('(size 2.05 2.05)','(size 2.50 1.80)')
+          s=s[:st]+f+s[en:]
+          for a,b in [
+            ('(segment (start 44.000 16.060) (end 48.550 16.060)','(segment (start 42.400 16.060) (end 48.550 16.060)'),
+            ('(segment (start 44.000 21.140) (end 40.000 21.140)','(segment (start 42.400 21.140) (end 40.000 21.140)')]:
+              assert s.count(a)==1,(a,s.count(a))
+              s=s.replace(a,b)
+          p.write_text(s)
+          lib=Path('verify/src/YK66.pretty/Phoenix_1711725_MKDS3_2_5p08_PRELIM.kicad_mod')
+          t=lib.read_text()
+          assert t.count('(size 2.4 2.4)')==2
+          t=t.replace('(size 2.4 2.4)','(size 2.50 1.80)').replace('thru_hole circle','thru_hole oval')
+          t=t.replace('start -5.60 -5.08) (end 5.60 5.08','start -5.90 -5.08) (end 5.30 5.08')
+          lib.write_text(t)
+          print('J1 relocated to 42.4,18.6; 2x 1.3 PTH; copper oval 2.5x1.8; Pin1/L at42.4,16.06; Pin2/N at42.4,21.14')
+          print('J1 body right edge 47.7; gap to PCB right edge 2.3mm')
+          PY
       - name: Native PCB DRC
         shell: bash
         run: |
