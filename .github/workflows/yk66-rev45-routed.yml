@@ -1,4 +1,4 @@
-name: YK66 Rev45U Standard PCB Fabrication Gate
+name: YK66 Rev45U Standard PCB Revised-Annular Gate
 on:
   push:
     branches: [research/yk66-rev45u-standard-fab-20261024]
