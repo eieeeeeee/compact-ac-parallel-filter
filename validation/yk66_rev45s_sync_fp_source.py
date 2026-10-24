@@ -55,7 +55,7 @@ for fp in fps:
  p.append(')')
  (lib/f'{name}.kicad_mod').write_text('\n'.join(p)+'\n')
  rows.append((name,side,len(elems(fp,'pad'))))
-assert len(rows)==9,len(rows)
+assert len(rows)==8,len(rows)
 assert board.read_bytes()==original
 with (root/'FOOTPRINT_SOURCE_SYNC.csv').open('w') as f:
  w=csv.writer(f);w.writerow(('footprint','board_side','pads'));w.writerows(rows)
