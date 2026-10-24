@@ -1,4 +1,4 @@
-name: YK66 Rev45 50x32 Routed Candidate Native DRC
+name: YK66 Rev45 50x32 Corrected-Annotations Native DRC
 on:
   push:
     branches: [research/yk66-rev45-clearance-gate-20261024]
