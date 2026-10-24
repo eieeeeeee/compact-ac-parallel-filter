@@ -137,6 +137,27 @@ jobs:
           echo $? > verify/results/parity_exit.txt
           cat verify/results/rev45_parity.txt
           exit 0
+      - name: Experimental 3mm L-N isolation screening (NOT safety standard)
+        shell: bash
+        run: |
+          cat > verify/src/YK66_Rev41_RESEARCH_ONLY.kicad_dru <<'RULE'
+          (version 1)
+          (rule "L-to-N_3mm_screening"
+            (severity error)
+            (condition "(A.NetName == '/N' && (B.NetName == '/AC_A' || B.NetName == '/FUSED' || B.NetName == '/C_HOT')) || (B.NetName == '/N' && (A.NetName == '/AC_A' || A.NetName == '/FUSED' || A.NetName == '/C_HOT'))")
+            (constraint clearance (min 3mm)))
+          (rule "Board_edge_1mm_screening"
+            (severity error)
+            (constraint edge_clearance (min 1mm)))
+          RULE
+          set +e
+          kicad-cli pcb drc --severity-all --all-track-errors \\
+            -o verify/results/rev45_3mm_screening_DRC.txt \\
+            verify/src/YK66_Rev41_RESEARCH_ONLY.kicad_pcb
+            verify/src/YK66_Rev41_RESEARCH_ONLY.kicad_dru
+          echo $? > verify/results/strict_drc_exit.txt
+          head -70 verify/results/rev45_3mm_screening_DRC.txt
+          exit 0
       - name: Export official KiCad preliminary manufacturing plots
         shell: bash
         run: |
