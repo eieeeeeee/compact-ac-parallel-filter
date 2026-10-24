@@ -44,6 +44,13 @@ for a,b,part in reversed(list(blocks(s,'(footprint '))):
 assert count==13,count
 s=s.replace('(gr_text "YK66 Rev45 ROUTED RESEARCH HOLD / NO MAINS" (at 26 1.3) (layer "F.SilkS")','(gr_text "YK66 Rev45 ROUTED RESEARCH HOLD / NO MAINS" (at 26 1.3) (layer "F.Fab")')
 pcb.write_text(s)
+lib=root/"YK66.kicad_sym"
+data=lib.read_text()
+# Earlier generated library had malformed KiCad hide-field placement (8 fields).
+data,n=re.subn(r'(\(effects \(font \(size [^)]+\)\))\) hide\)',r'\1 hide))',data)
+assert n==8,("symbol library malformed-hide count",n)
+lib.write_text(data)
+print("Repaired 8 malformed symbol-library hide fields.")
 s=sch.read_text();q=1.27
 groups=[]
 for a,b,part in reversed(list(blocks(s,'(symbol (lib_id '))):
