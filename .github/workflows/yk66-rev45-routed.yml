@@ -1,7 +1,7 @@
 name: YK66 Rev45 50x32 Routed Candidate Native DRC
 on:
   push:
-    branches: [research/yk66-50x32-placement-20261024]
+    branches: [research/yk66-rev45-clearance-gate-20261024]
     paths: [.github/workflows/yk66-rev45-routed.yml]
 permissions:
   contents: read
@@ -94,6 +94,34 @@ jobs:
           p.write_text(s)
           print('Research candidate: 50x32, J1 Phoenix 1711725, 26 pads, 36 routed copper segments')
           PY
+      - name: Apply clearance improvement candidate ONLY (not manufacturing approval)
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('verify/src/YK66_Rev41_RESEARCH_ONLY.kicad_pcb')
+          s=p.read_text()
+          assert s.count('47.550')==4
+          s=s.replace('47.550','48.550')
+          changes={
+          '(segment (start 29.750 18.750) (end 29.750 22.950)':'(segment (start 29.750 18.750) (end 29.750 23.600)',
+          '(segment (start 29.750 22.950) (end 14.000 22.950)':'(segment (start 29.750 23.600) (end 20.500 23.600)',
+          '(segment (start 14.000 22.950) (end 11.000 23.200)':'(segment (start 20.500 23.600) (end 16.500 21.000)',
+          '(segment (start 11.000 23.200) (end 7.700 23.000)':'(segment (start 16.500 21.000) (end 7.700 21.000)',
+          '(at 5.7 23 0)':'(at 5.0 23 0)',
+          }
+          for a,b in changes.items():
+              assert s.count(a)==1,(a,s.count(a))
+              s=s.replace(a,b)
+          j0=s.index('(footprint "YK66:Phoenix_1711725_MKDS3_2_5p08_PRELIM"')
+          j1=s.index('\n(footprint ',j0+1)
+          block=s[j0:j1]
+          assert block.count('(size 2.4 2.4)')==2
+          block=block.replace('(size 2.4 2.4)','(size 2.05 2.05)')
+          s=s[:j0]+block+s[j1:]
+          p.write_text(s)
+          print('L/N clearance re-route 50x32mm, J1 lands D=2.05mm, diode offset -0.7mm')
+          PY
       - name: Native PCB DRC
         shell: bash
         run: |
@@ -150,11 +178,13 @@ jobs:
             (severity error)
             (constraint edge_clearance (min 1mm)))
           RULE
+          printf '{}\n' > verify/src/YK66_Rev41_RESEARCH_ONLY.kicad_pro
           set +e
           kicad-cli pcb drc --severity-all --all-track-errors \\
             -o verify/results/rev45_3mm_screening_DRC.txt \\
             verify/src/YK66_Rev41_RESEARCH_ONLY.kicad_pcb
             verify/src/YK66_Rev41_RESEARCH_ONLY.kicad_dru
+            verify/src/YK66_Rev41_RESEARCH_ONLY.kicad_pro
           echo $? > verify/results/strict_drc_exit.txt
           head -70 verify/results/rev45_3mm_screening_DRC.txt
           exit 0
