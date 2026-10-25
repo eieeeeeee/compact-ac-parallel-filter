@@ -4,6 +4,8 @@ on:
     branches: [research/yk66-rev45u-j1-fit-coupon-20261025]
     paths:
       - "validation/Rev45U_J1_MECHANICAL_FIT_COUPON_NO_CIRCUIT.kicad_pcb"
+      - "validation/YK66.pretty/**"
+      - "validation/fp-lib-table"
       - ".github/workflows/yk66-rev45u-j1-mechanical-coupon.yml"
 permissions:
   contents: read
@@ -53,5 +55,8 @@ jobs:
           name: Rev45U-J1-FIT-ONLY-no-electrical-circuit
           path: |
             validation/Rev45U_J1_MECHANICAL_FIT_COUPON_NO_CIRCUIT.kicad_pcb
+            validation/Rev45U_J1_MECHANICAL_FIT_COUPON_NO_CIRCUIT.kicad_pro
+            validation/YK66.pretty/
+            validation/fp-lib-table
             coupon_exports/
           retention-days: 30
