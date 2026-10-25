@@ -1,0 +1,57 @@
+name: YK66 Rev45U J1 Non-Electrical Coupon Verification
+on:
+  push:
+    branches: [research/yk66-rev45u-j1-fit-coupon-20261025]
+    paths:
+      - "validation/Rev45U_J1_MECHANICAL_FIT_COUPON_NO_CIRCUIT.kicad_pcb"
+      - ".github/workflows/yk66-rev45u-j1-mechanical-coupon.yml"
+permissions:
+  contents: read
+jobs:
+  coupon-kicad10:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install KiCad 10
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y software-properties-common
+          sudo add-apt-repository -y ppa:kicad/kicad-10.0-releases
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends kicad kicad-symbols kicad-footprints
+          kicad-cli version
+      - name: Verify exact non-electrical coupon dimensions and pads
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          x=Path("validation/Rev45U_J1_MECHANICAL_FIT_COUPON_NO_CIRCUIT.kicad_pcb").read_text()
+          for token in ['(end 50 32)','(at 42.4 18.6 0)','(pad "1" thru_hole oval','(pad "2" thru_hole oval','NO MAINS / NO CIRCUIT']:
+              assert token in x,token
+          assert x.count('(size 2.80 2.04)')==2
+          assert x.count('(drill 1.3)')==2
+          assert '(segment ' not in x
+          assert '(net 1 ' not in x
+          print('NON-ELECTRICAL J1 FIT COUPON: 50x32, nominal 1.6mm, 2 pads, pitch 5.08, PTH 1.30, oval 2.80x2.04, NO TRACES')
+          PY
+      - name: Native KiCad 10 coupon DRC
+        run: |
+          mkdir -p coupon_exports
+          kicad-cli pcb drc --severity-all --all-track-errors -o coupon_exports/DRC.txt validation/Rev45U_J1_MECHANICAL_FIT_COUPON_NO_CIRCUIT.kicad_pcb
+          cat coupon_exports/DRC.txt
+      - name: Export mechanical fit-only Gerber / Excellon plots
+        run: |
+          set -e
+          BOARD=validation/Rev45U_J1_MECHANICAL_FIT_COUPON_NO_CIRCUIT.kicad_pcb
+          kicad-cli pcb export gerbers -o coupon_exports/ --layers F.Cu,B.Cu,F.Mask,B.Mask,F.Silkscreen,Edge.Cuts "$BOARD"
+          kicad-cli pcb export drill --output coupon_exports/ --format excellon --excellon-units mm "$BOARD"
+          ls -l coupon_exports/
+      - name: Preserve non-electrical manufacturing verification only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Rev45U-J1-FIT-ONLY-no-electrical-circuit
+          path: |
+            validation/Rev45U_J1_MECHANICAL_FIT_COUPON_NO_CIRCUIT.kicad_pcb
+            coupon_exports/
+          retention-days: 30
