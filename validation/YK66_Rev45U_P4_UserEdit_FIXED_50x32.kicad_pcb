@@ -1105,32 +1105,32 @@
 		)
 		(embedded_fonts no)
 	)
-	(footprint "YK66:LED_1206_Bottom"
-		(layer "B.Cu")
+	(footprint "YK66:LED_3MM_Remote_Wired_PTH"
+		(layer "F.Cu")
 		(uuid "f8db0f8c-7baa-44f8-a8bb-1be629df7144")
-		(at 5.7 19)
+		(at 5.7 21)
 		(property "Reference" "LED1"
 			(at 0 -3 0)
-			(layer "B.SilkS")
+			(layer "F.SilkS")
 			(uuid "1e8b1b42-71a7-4366-a923-cfe0a1a7e013")
 			(effects
 				(font
 					(size 0.8 0.8)
 					(thickness 0.12)
 				)
-				(justify mirror)
+				
 			)
 		)
-		(property "Value" "WHITE_1206_HI_EFF_TBD"
+		(property "Value" "WHITE_LED_3MM_REMOTE_WIRED"
 			(at 0 3 0)
-			(layer "B.Fab")
+			(layer "F.Fab")
 			(uuid "0b5c2c7b-e2c1-49c5-a859-6ccea7dcc395")
 			(effects
 				(font
 					(size 0.65 0.65)
 					(thickness 0.1)
 				)
-				(justify mirror)
+				
 			)
 		)
 		(property "Datasheet" ""
@@ -1157,36 +1157,35 @@
 				)
 			)
 		)
-		(attr smd)
-		(fp_rect
-			(start -1.85 -0.9)
-			(end 1.85 0.9)
-			(stroke
-				(width 0.12)
-				(type default)
-			)
-			(fill no)
-			(layer "B.Fab")
-			(uuid "a9d26d94-1a5f-4f1e-b682-63815404a95b")
-		)
-		(pad "1" smd rect
-			(at -2 0)
-			(size 2 1.8)
-			(layers "B.Cu" "B.Mask" "B.Paste")
-			(net 8 "/LED_A")
-			(pinfunction "1")
-			(pintype "passive")
-			(uuid "0f743f9b-47b2-4b52-9b8c-d22a74750cbd")
-		)
-		(pad "2" smd rect
-			(at 2 0)
-			(size 2 1.8)
-			(layers "B.Cu" "B.Mask" "B.Paste")
-			(net 4 "/N")
-			(pinfunction "2")
-			(pintype "passive")
-			(uuid "a7c589e6-9014-4cb0-9af1-bf4be9908d43")
-		)
+		(attr through_hole)
+		(fp_circle
+            (center 0 0)
+            (end 1.5 0)
+            (stroke (width 0.12) (type default))
+            (fill no)
+            (layer "F.Fab")
+            (uuid "a9d26d94-1a5f-4f1e-b682-63815404a95b")
+        )
+		(pad "1" thru_hole circle
+            (at -2 0)
+            (size 1.8 1.8)
+            (drill 0.9)
+            (layers "*.Cu" "*.Mask")
+            (net 8 "/LED_A")
+            (pinfunction "A")
+            (pintype "passive")
+            (uuid "0f743f9b-47b2-4b52-9b8c-d22a74750cbd")
+        )
+		(pad "2" thru_hole circle
+            (at 2 0)
+            (size 1.8 1.8)
+            (drill 0.9)
+            (layers "*.Cu" "*.Mask")
+            (net 4 "/N")
+            (pinfunction "K")
+            (pintype "passive")
+            (uuid "a7c589e6-9014-4cb0-9af1-bf4be9908d43")
+        )
 		(embedded_fonts no)
 	)
 	(gr_rect
