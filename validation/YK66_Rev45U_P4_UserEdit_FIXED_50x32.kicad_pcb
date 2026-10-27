@@ -1463,9 +1463,8 @@
 		(net 4)
 		(uuid "58de9e12-02c7-49b0-8b0b-83ff46b8fae4")
 	)
-	(arc
+	(segment
 		(start 21.5000 23.4000)
-		(mid 15.7000 22.0500)
 		(end 9.2000 20.5500)
 		(width 0.650)
 		(layer "B.Cu")
