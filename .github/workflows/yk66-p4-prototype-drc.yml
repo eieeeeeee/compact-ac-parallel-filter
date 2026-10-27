@@ -42,7 +42,7 @@ jobs:
           lib.mkdir(exist_ok=True)
           saved = set()
           for fp in board.GetFootprints():
-              name = fp.GetFPID().GetLibItemName()
+              name = str(fp.GetFPID().GetLibItemName())
               if name in saved:
                   continue
               ok = pcbnew.FootprintSave(str(lib), fp)
