@@ -30,6 +30,7 @@ jobs:
           cp validation/YK66_Rev45U_P4_UserEdit_FIXED_50x32.kicad_pcb output/YK66_Rev45U_P4_UserEdit_FIXED_50x32.kicad_pcb
           printf '{}\n' > output/YK66_Rev45U_P4_UserEdit_FIXED_50x32.kicad_pro
           sha256sum output/*.kicad_pcb | tee output/reports/board_sha256.txt
+          cp validation/YK66_P4_INSULATION_REVIEW_JA.md output/reports/YK66_P4_INSULATION_REVIEW_JA.md
       - name: Register exact board footprint library
         run: |
           set -e
@@ -98,8 +99,10 @@ jobs:
           フットプリントエラー: {f.group(1) if f else '未確認'}件
           Gerber/Excellon出力: {os.environ.get('PLOTS_OUTCOME', '未確認')}
 
-          AC100V絶縁審査: 未判定（合格とは記載しない）
-          異ネット間の最小銅箔間隔: 未測定／数値未確定
+          AC100V絶縁審査: 未合格（基本絶縁を要求する仮定では一次審査不合格。正式な絶縁種別は未確定）
+          異ネット間の最小銅箔間隔: 0.40mm（LED1 pad 2 /N と /LED_A 配線。対象基板のGit blob SHA 2356300cf97cfac6b5adcb46e06ad2fb89ea47f5）
+          参考比較: IEC 60664-1、AC100V・OVC II・汚損度2・材料グループIII・基本絶縁を仮定すると空間距離0.50mm、沿面距離1.40mmが参考値。0.40mmは双方を下回る。
+          根拠と制限: output/reports/YK66_P4_INSULATION_REVIEW_JA.md を参照。対象基板SHA変更時は再測定が必要。
           適用安全規格・過電圧カテゴリ・汚損度・材料CTI・必要空間距離・沿面距離: 未確定
           表裏層の重なり、端子台・部品下の沿面経路、筐体内の導電部との距離も別途評価が必要。
           DRCの無効化項目は本メモの合格対象外。
