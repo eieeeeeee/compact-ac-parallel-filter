@@ -175,6 +175,13 @@ jobs:
         shell: bash
         run: |
           python3 validation/yk66_rev45s_sync_fp_source.py
+      - name: Load latest user-edited Rev45U P4 FIXED PCB for official verification
+        shell: bash
+        run: |
+          set -e
+          cp validation/YK66_Rev45U_P4_UserEdit_FIXED_50x32.kicad_pcb verify/src/YK66_Rev41_RESEARCH_ONLY.kicad_pcb
+          echo "Native DRC input: $(sha256sum verify/src/YK66_Rev41_RESEARCH_ONLY.kicad_pcb)"
+          grep -q 'YK66 Rev45U USER ROUTING FIXED' verify/src/YK66_Rev41_RESEARCH_ONLY.kicad_pcb
       - name: Native PCB DRC
         shell: bash
         run: |
