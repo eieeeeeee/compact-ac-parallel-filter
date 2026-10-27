@@ -51,7 +51,7 @@ jobs:
           if len(list(lib.glob("*.kicad_mod"))) != len(saved):
               raise RuntimeError("Footprint library export incomplete")
           (base / "fp-lib-table").write_text(
-              '(fp_lib_table\\n  (lib (name "YK66")(type "KiCad")(uri "${KIPRJMOD}/YK66.pretty")(options "")(descr "Exact P4 board footprints"))\\n)\\n'
+              '(fp_lib_table\\n  (version 7)\\n  (lib (name "YK66")(type "KiCad")(uri "${KIPRJMOD}/YK66.pretty")(options "")(descr "Exact P4 board footprints"))\\n)\\n'
           )
           print("Registered", len(saved), "unique footprints for", len(list(board.GetFootprints())), "parts")
           PY
