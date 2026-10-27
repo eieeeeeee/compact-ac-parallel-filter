@@ -86,7 +86,7 @@
 			(uuid "38a8fdf0-f9db-4729-beb3-457edf1ecb5d")
 			(effects
 				(font
-					(size 0.7 0.7)
+					(size 0.8 0.8)
 					(thickness 0.12)
 				)
 			)
@@ -172,7 +172,7 @@
 			(uuid "fdf63775-abeb-4fe7-9b55-8e2c9e86524a")
 			(effects
 				(font
-					(size 0.7 0.7)
+					(size 0.8 0.8)
 					(thickness 0.12)
 				)
 			)
@@ -258,7 +258,7 @@
 			(uuid "c4fd15b2-1122-4cb3-ae4e-2dd355f6b18a")
 			(effects
 				(font
-					(size 0.7 0.7)
+					(size 0.8 0.8)
 					(thickness 0.12)
 				)
 			)
@@ -344,7 +344,7 @@
 			(uuid "41b95350-7fd0-427b-92fa-893e130af02a")
 			(effects
 				(font
-					(size 0.7 0.7)
+					(size 0.8 0.8)
 					(thickness 0.12)
 				)
 			)
@@ -441,7 +441,7 @@
 			(uuid "0af95322-0ea7-49a2-b4c5-e15e46d01556")
 			(effects
 				(font
-					(size 0.7 0.7)
+					(size 0.8 0.8)
 					(thickness 0.12)
 				)
 			)
@@ -527,9 +527,10 @@
 			(uuid "5d8612e1-23db-4c38-a2f7-27e8c4a54e13")
 			(effects
 				(font
-					(size 0.7 0.7)
+					(size 0.8 0.8)
 					(thickness 0.12)
 				)
+				(justify mirror)
 			)
 		)
 		(property "Value" "1N4148W"
@@ -541,6 +542,7 @@
 					(size 0.65 0.65)
 					(thickness 0.1)
 				)
+				(justify mirror)
 			)
 		)
 		(property "Datasheet" ""
@@ -609,9 +611,10 @@
 			(uuid "621c47c6-5d32-4333-bae8-b218d1621533")
 			(effects
 				(font
-					(size 0.7 0.7)
+					(size 0.8 0.8)
 					(thickness 0.12)
 				)
+				(justify mirror)
 			)
 		)
 		(property "Value" "RC2512FK-07150KL"
@@ -623,6 +626,7 @@
 					(size 0.65 0.65)
 					(thickness 0.1)
 				)
+				(justify mirror)
 			)
 		)
 		(property "Datasheet" ""
@@ -691,9 +695,10 @@
 			(uuid "5fb51fc2-8829-4638-ba27-47f5e3ddffbc")
 			(effects
 				(font
-					(size 0.7 0.7)
+					(size 0.8 0.8)
 					(thickness 0.12)
 				)
+				(justify mirror)
 			)
 		)
 		(property "Value" "220k_RC2512FK-07220KL"
@@ -705,6 +710,7 @@
 					(size 0.65 0.65)
 					(thickness 0.1)
 				)
+				(justify mirror)
 			)
 		)
 		(property "Datasheet" ""
@@ -773,9 +779,10 @@
 			(uuid "20a5b300-8760-4d84-a176-4ebb3828dc1f")
 			(effects
 				(font
-					(size 0.7 0.7)
+					(size 0.8 0.8)
 					(thickness 0.12)
 				)
+				(justify mirror)
 			)
 		)
 		(property "Value" "220k_RC2512FK-07220KL"
@@ -787,6 +794,7 @@
 					(size 0.65 0.65)
 					(thickness 0.1)
 				)
+				(justify mirror)
 			)
 		)
 		(property "Datasheet" ""
@@ -855,9 +863,10 @@
 			(uuid "3e674684-2106-4480-82a8-24c69c919ec9")
 			(effects
 				(font
-					(size 0.7 0.7)
+					(size 0.8 0.8)
 					(thickness 0.12)
 				)
+				(justify mirror)
 			)
 		)
 		(property "Value" "220k_RC2512FK-07220KL"
@@ -869,6 +878,7 @@
 					(size 0.65 0.65)
 					(thickness 0.1)
 				)
+				(justify mirror)
 			)
 		)
 		(property "Datasheet" ""
@@ -937,9 +947,10 @@
 			(uuid "8bbbdf48-799a-4511-ac2c-ec19782bc532")
 			(effects
 				(font
-					(size 0.7 0.7)
+					(size 0.8 0.8)
 					(thickness 0.12)
 				)
+				(justify mirror)
 			)
 		)
 		(property "Value" "RC2512FK-07150KL"
@@ -951,6 +962,7 @@
 					(size 0.65 0.65)
 					(thickness 0.1)
 				)
+				(justify mirror)
 			)
 		)
 		(property "Datasheet" ""
@@ -1019,9 +1031,10 @@
 			(uuid "f3da0db1-00c3-49c2-abc8-78264b860231")
 			(effects
 				(font
-					(size 0.7 0.7)
+					(size 0.8 0.8)
 					(thickness 0.12)
 				)
+				(justify mirror)
 			)
 		)
 		(property "Value" "220k_RC2512FK-07220KL"
@@ -1033,6 +1046,7 @@
 					(size 0.65 0.65)
 					(thickness 0.1)
 				)
+				(justify mirror)
 			)
 		)
 		(property "Datasheet" ""
@@ -1101,9 +1115,10 @@
 			(uuid "1e8b1b42-71a7-4366-a923-cfe0a1a7e013")
 			(effects
 				(font
-					(size 0.7 0.7)
+					(size 0.8 0.8)
 					(thickness 0.12)
 				)
+				(justify mirror)
 			)
 		)
 		(property "Value" "WHITE_1206_HI_EFF_TBD"
@@ -1115,6 +1130,7 @@
 					(size 0.65 0.65)
 					(thickness 0.1)
 				)
+				(justify mirror)
 			)
 		)
 		(property "Datasheet" ""
