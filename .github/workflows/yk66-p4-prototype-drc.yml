@@ -40,14 +40,13 @@ jobs:
           board = pcbnew.LoadBoard(str(base / "YK66_Rev45U_P4_UserEdit_FIXED_50x32.kicad_pcb"))
           lib = base / "YK66.pretty"
           lib.mkdir(exist_ok=True)
+          io = pcbnew.PCB_IO_KICAD_SEXPR()
           saved = set()
           for fp in board.GetFootprints():
               name = str(fp.GetFPID().GetLibItemName())
               if name in saved:
                   continue
-              ok = pcbnew.FootprintSave(str(lib), fp)
-              if ok is False:
-                  raise RuntimeError("FootprintSave failed: " + name)
+              io.FootprintSave(str(lib.resolve()), fp)
               saved.add(name)
           if len(list(lib.glob("*.kicad_mod"))) != len(saved):
               raise RuntimeError("Footprint library export incomplete")
