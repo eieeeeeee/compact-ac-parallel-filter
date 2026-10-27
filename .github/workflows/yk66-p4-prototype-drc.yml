@@ -1,4 +1,5 @@
 name: YK66 P4 Prototype PCB DRC
+# Re-run P4 verification on branch push (2026-10-27)
 on:
   push:
     branches:
