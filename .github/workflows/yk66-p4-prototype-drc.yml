@@ -73,6 +73,45 @@ jobs:
           PCB=output/YK66_Rev45U_P4_UserEdit_FIXED_50x32.kicad_pcb
           kicad-cli pcb export gerbers --output output/plots/ --layers F.Cu,B.Cu,F.Mask,B.Mask,F.Silkscreen,B.Silkscreen,Edge.Cuts "$PCB"
           kicad-cli pcb export drill --output output/plots/ --format excellon --excellon-units mm "$PCB"
+      - name: Write explicit acceptance memo with scope
+        if: always()
+        run: |
+          /usr/bin/python3 - <<'PY'
+          from pathlib import Path
+          import os
+          import re
+          p = Path("output/reports")
+          p.mkdir(parents=True, exist_ok=True)
+          report = (p / "native_drc.txt").read_text(errors="replace") if (p / "native_drc.txt").exists() else ""
+          m = re.search(r"Found (\\d+) DRC violations", report)
+          n = re.search(r"Found (\\d+) unconnected pads", report)
+          f = re.search(r"Found (\\d+) Footprint errors", report)
+          drc_ok = (p / "native_drc_exit.txt").exists() and (p / "native_drc_exit.txt").read_text().strip() == "0" and all(x is not None and x.group(1) == "0" for x in (m, n, f))
+          gerber_ok = os.environ.get("PLOTS_OUTCOME") == "success"
+          manufacturing_status = "合格（KiCad DRC・Gerber/ドリル生成の範囲）" if drc_ok and gerber_ok else "不合格／未完了"
+          memo = f"""# YK66 Rev45U P4 50x32mm 検証・合格判定メモ
+
+          基板製造データ検証: {manufacturing_status}
+          判定基準: KiCad DRC違反0件・未接続0件・フットプリントエラー0件、Gerber/Excellon出力成功。
+          DRC違反: {m.group(1) if m else '未確認'}件
+          未接続: {n.group(1) if n else '未確認'}件
+          フットプリントエラー: {f.group(1) if f else '未確認'}件
+          Gerber/Excellon出力: {os.environ.get('PLOTS_OUTCOME', '未確認')}
+
+          AC100V絶縁審査: 未判定（合格とは記載しない）
+          異ネット間の最小銅箔間隔: 未測定／数値未確定
+          適用安全規格・過電圧カテゴリ・汚損度・材料CTI・必要空間距離・沿面距離: 未確定
+          表裏層の重なり、端子台・部品下の沿面経路、筐体内の導電部との距離も別途評価が必要。
+          DRCの無効化項目は本メモの合格対象外。
+
+          このメモは上記の判定範囲だけに適用する。AC100V製品の安全適合や発注承認を意味しない。
+          絶縁条件の根拠と最小実測値が確定し、基準を満たした場合のみ、別途「AC100V絶縁審査: 合格（基準・測定値・証拠を明記）」を追記する。
+          """
+          (p / "ACCEPTANCE_MEMO_JA.md").write_text("\\n".join(line.strip() for line in memo.splitlines()) + "\\n", encoding="utf-8")
+          print((p / "ACCEPTANCE_MEMO_JA.md").read_text())
+          PY
+        env:
+          PLOTS_OUTCOME: ${{ steps.plots.outcome }}
       - name: Upload PCB and reports even on errors
         if: always()
         uses: actions/upload-artifact@v4
