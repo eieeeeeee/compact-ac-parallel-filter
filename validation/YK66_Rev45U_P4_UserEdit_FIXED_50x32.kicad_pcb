@@ -1108,7 +1108,7 @@
 	(footprint "YK66:LED_1206_Bottom"
 		(layer "B.Cu")
 		(uuid "f8db0f8c-7baa-44f8-a8bb-1be629df7144")
-		(at 5.7 21)
+		(at 5.7 20.2)
 		(property "Reference" "LED1"
 			(at 0 -3 0)
 			(layer "B.SilkS")
