@@ -1,0 +1,63 @@
+name: YK66 P4 Prototype PCB DRC
+on:
+  push:
+    branches:
+      - research/yk66-rev45u-standard-fab-20261024
+    paths:
+      - .github/workflows/yk66-p4-prototype-drc.yml
+      - validation/YK66_Rev45U_P4_UserEdit_FIXED_50x32.kicad_pcb
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  prototype-pcb-drc:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install KiCad 10
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y software-properties-common
+          sudo add-apt-repository -y ppa:kicad/kicad-10.0-releases
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends kicad
+          kicad-cli version
+      - name: Prepare exact P4 board
+        run: |
+          mkdir -p output/reports output/plots
+          cp validation/YK66_Rev45U_P4_UserEdit_FIXED_50x32.kicad_pcb output/YK66_Rev45U_P4_UserEdit_FIXED_50x32.kicad_pcb
+          printf '{}\n' > output/YK66_Rev45U_P4_UserEdit_FIXED_50x32.kicad_pro
+          sha256sum output/*.kicad_pcb | tee output/reports/board_sha256.txt
+      - name: Run native KiCad PCB DRC
+        id: drc
+        continue-on-error: true
+        run: |
+          set +e
+          kicad-cli pcb drc --severity-all --all-track-errors -o output/reports/native_drc.txt output/YK66_Rev45U_P4_UserEdit_FIXED_50x32.kicad_pcb
+          result=$?
+          echo "$result" > output/reports/native_drc_exit.txt
+          if [ -f output/reports/native_drc.txt ]; then cat output/reports/native_drc.txt; fi
+          exit "$result"
+      - name: Export preliminary prototype Gerbers and drill
+        id: plots
+        continue-on-error: true
+        run: |
+          set -e
+          PCB=output/YK66_Rev45U_P4_UserEdit_FIXED_50x32.kicad_pcb
+          kicad-cli pcb export gerbers --output output/plots/ --layers F.Cu,B.Cu,F.Mask,B.Mask,F.Silkscreen,B.Silkscreen,Edge.Cuts "$PCB"
+          kicad-cli pcb export drill --output output/plots/ --format excellon --excellon-units mm "$PCB"
+      - name: Upload PCB and reports even on errors
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: YK66-P4-Prototype-Native-DRC
+          path: output/
+          retention-days: 30
+      - name: Report actual prototype validation status
+        if: always()
+        run: |
+          echo 'Prototype PCB DRC only; this workflow does not certify AC100V product safety.'
+          test -f output/reports/native_drc_exit.txt
+          test "$(cat output/reports/native_drc_exit.txt)" = "0"
+          test "${{ steps.plots.outcome }}" = "success"
