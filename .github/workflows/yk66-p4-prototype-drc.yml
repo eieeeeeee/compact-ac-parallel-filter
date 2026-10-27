@@ -30,6 +30,32 @@ jobs:
           cp validation/YK66_Rev45U_P4_UserEdit_FIXED_50x32.kicad_pcb output/YK66_Rev45U_P4_UserEdit_FIXED_50x32.kicad_pcb
           printf '{}\n' > output/YK66_Rev45U_P4_UserEdit_FIXED_50x32.kicad_pro
           sha256sum output/*.kicad_pcb | tee output/reports/board_sha256.txt
+      - name: Register exact board footprint library
+        run: |
+          set -e
+          /usr/bin/python3 - <<'PY'
+          from pathlib import Path
+          import pcbnew
+          base = Path("output")
+          board = pcbnew.LoadBoard(str(base / "YK66_Rev45U_P4_UserEdit_FIXED_50x32.kicad_pcb"))
+          lib = base / "YK66.pretty"
+          lib.mkdir(exist_ok=True)
+          saved = set()
+          for fp in board.GetFootprints():
+              name = fp.GetFPID().GetLibItemName()
+              if name in saved:
+                  continue
+              ok = pcbnew.FootprintSave(str(lib), fp)
+              if ok is False:
+                  raise RuntimeError("FootprintSave failed: " + name)
+              saved.add(name)
+          if len(list(lib.glob("*.kicad_mod"))) != len(saved):
+              raise RuntimeError("Footprint library export incomplete")
+          (base / "fp-lib-table").write_text(
+              '(fp_lib_table\\n  (lib (name "YK66")(type "KiCad")(uri "${KIPRJMOD}/YK66.pretty")(options "")(descr "Exact P4 board footprints"))\\n)\\n'
+          )
+          print("Registered", len(saved), "unique footprints for", len(list(board.GetFootprints())), "parts")
+          PY
       - name: Run native KiCad PCB DRC
         id: drc
         continue-on-error: true
