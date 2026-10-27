@@ -523,7 +523,7 @@
 		(at 5 23)
 		(property "Reference" "D1"
 			(at 0 -3 0)
-			(layer "B.SilkS")
+			(layer "B.Fab")
 			(uuid "5d8612e1-23db-4c38-a2f7-27e8c4a54e13")
 			(effects
 				(font
