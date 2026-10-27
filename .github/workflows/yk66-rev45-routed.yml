@@ -1,4 +1,4 @@
-name: YK66 Rev45U Standard PCB Revised-Annular Gate
+name: YK66 Rev45U P4 FIXED Native DRC Verification
 on:
   push:
     branches: [research/yk66-rev45u-standard-fab-20261024]
