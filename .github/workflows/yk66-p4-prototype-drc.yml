@@ -7,6 +7,7 @@ on:
     paths:
       - .github/workflows/yk66-p4-prototype-drc.yml
       - validation/YK66_Rev45U_P4_UserEdit_FIXED_50x32.kicad_pcb
+      - validation/yk66_p4_copper_screen.py
   workflow_dispatch:
 permissions:
   contents: read
@@ -22,7 +23,7 @@ jobs:
           sudo apt-get install -y software-properties-common
           sudo add-apt-repository -y ppa:kicad/kicad-10.0-releases
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends kicad
+          sudo apt-get install -y --no-install-recommends kicad python3-shapely python3-sexpdata
           kicad-cli version
       - name: Prepare exact P4 board
         run: |
@@ -56,6 +57,9 @@ jobs:
           )
           print("Registered", len(saved), "unique footprints for", len(list(board.GetFootprints())), "parts")
           PY
+      - name: Independent copper geometry screening
+        run: |
+          /usr/bin/python3 validation/yk66_p4_copper_screen.py output/YK66_Rev45U_P4_UserEdit_FIXED_50x32.kicad_pcb > output/reports/copper_geometry.json
       - name: Run native KiCad PCB DRC
         id: drc
         continue-on-error: true
@@ -81,6 +85,7 @@ jobs:
           from pathlib import Path
           import os
           import re
+          import json
           p = Path("output/reports")
           p.mkdir(parents=True, exist_ok=True)
           report = (p / "native_drc.txt").read_text(errors="replace") if (p / "native_drc.txt").exists() else ""
@@ -88,6 +93,12 @@ jobs:
           n = re.search(r"Found (\d+) unconnected pads", report)
           f = re.search(r"Found (\d+) Footprint errors", report)
           drc_ok = (p / "native_drc_exit.txt").exists() and (p / "native_drc_exit.txt").read_text().strip() == "0" and all(x is not None and x.group(1) == "0" for x in (m, n, f))
+          (p / "drc_acceptance.txt").write_text("PASS" if drc_ok else "FAIL")
+          geometry = json.loads((p / "copper_geometry.json").read_text()) if (p / "copper_geometry.json").exists() else None
+          geometry_note = "未測定"
+          if geometry:
+              nearest = geometry["minimum_pairs"][0]
+              geometry_note = f'{nearest["distance_mm"]:.6f} mm; {nearest["a"]} ({nearest["a_net"]}) / {nearest["b"]} ({nearest["b_net"]}); PCB blob {geometry["git_blob_sha1"]}'
           gerber_ok = os.environ.get("PLOTS_OUTCOME") == "success"
           manufacturing_status = "合格（KiCad DRC・Gerber/ドリル生成の範囲）" if drc_ok and gerber_ok else "不合格／未完了"
           memo = f"""# YK66 Rev45U P4 50x32mm 検証・合格判定メモ
@@ -100,8 +111,8 @@ jobs:
           Gerber/Excellon出力: {os.environ.get('PLOTS_OUTCOME', '未確認')}
 
           AC100V絶縁審査: 未判定（LED1の実装変更後、絶縁距離と適用条件を再確認する）
-          異ネット間の最小銅箔間隔: 1.400mm（幾何計算の設計公称値。RL2.1 /LED_R1MID と /LED_A のB.Cu配線間。PCB blob edd3f9522b7af872beb8d7e41f864f2b7f0bafc7）
-          参考比較: AC100V・汚損度2・材料III・基本絶縁仮定の沿面参考値1.40mmと公称値で一致するが、公差余裕0mm。絶縁適合は未判定。
+          異ネット間の最小銅箔間隔: {geometry_note}（設計形状の近似計算。製造公差込みの保証値ではない）
+          絶縁適合: 未判定。設計間隔の測定値だけで沿面距離・空間距離の適合を判定しない。
           根拠と制限: output/reports/YK66_P4_INSULATION_REVIEW_JA.md を参照。対象基板SHA変更時は再測定が必要。
           適用安全規格・過電圧カテゴリ・汚損度・材料CTI・必要空間距離・沿面距離: 未確定
           表裏層の重なり、端子台・部品下の沿面経路、筐体内の導電部との距離も別途評価が必要。
@@ -128,4 +139,6 @@ jobs:
           echo 'Prototype PCB DRC only; this workflow does not certify AC100V product safety.'
           test -f output/reports/native_drc_exit.txt
           test "$(cat output/reports/native_drc_exit.txt)" = "0"
+          test "$(cat output/reports/drc_acceptance.txt)" = "PASS"
+          test -s output/reports/copper_geometry.json
           test "${{ steps.plots.outcome }}" = "success"
