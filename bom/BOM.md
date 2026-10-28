@@ -1,3 +1,5 @@
+> このファイルは32×28mm Rev.Aの旧部品表です。50×32mm YK66 Rev45U P4は [評価試作用部品表](BOM_YK66_P4_EVALUATION_20261028.md) を参照してください。
+
 # Preliminary BOM — v0.1.0-preprototype / KiCad Rev.A
 
 **Status:** design-stage BOM only.  
